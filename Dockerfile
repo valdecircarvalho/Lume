@@ -2,10 +2,10 @@
 FROM emscripten/emsdk:latest AS build
 ENV EM_CACHE=/tmp/emcache
 WORKDIR /src
-COPY Makefile.web ./
+COPY Makefile.wasm ./
 COPY src ./src
 COPY web ./web
-RUN make -f Makefile.web web && node web/tools/prova.cjs web/dist/lume.js
+RUN make -f Makefile.wasm web && node web/tools/prova.cjs web/dist/lume.js
 
 # Estagio 2: serve o bundle estatico.
 FROM caddy:alpine

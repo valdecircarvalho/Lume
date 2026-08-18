@@ -2,7 +2,7 @@
 #
 # Uso (o Emscripten mora no container, nao na maquina):
 #   docker run --rm -v "$$PWD":/src -w /src -e EM_CACHE=/tmp/emcache \
-#     emscripten/emsdk:latest make -f Makefile.web
+#     emscripten/emsdk:latest make -f Makefile.wasm
 #
 # -D_POSIX_C_SOURCE=200809L e obrigatorio: com -std=c11 estrito a musl do
 # Emscripten nao declara localtime_r nem nanosleep, usados por lume_stdlib.c.
