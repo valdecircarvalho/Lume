@@ -1,0 +1,20 @@
+# Servidor do playground. A mesma config vale no container local e na VM;
+# so o endereco muda (`:8080` -> `lume.seu-dominio` para HTTPS automatico).
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		# Necessarios para SharedArrayBuffer (stdin interativo, Fase 1.5).
+		# Custo: embeds de terceiros sem CORP passam a ser bloqueados.
+		Cross-Origin-Opener-Policy   same-origin
+		Cross-Origin-Embedder-Policy require-corp
+		X-Content-Type-Options       nosniff
+	}
+
+	@imutavel path *.wasm *.js
+	header @imutavel Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+
+	file_server
+}

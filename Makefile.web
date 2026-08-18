@@ -1,0 +1,46 @@
+# Build WebAssembly da Lume. Nao interfere no Makefile nativo.
+#
+# Uso (o Emscripten mora no container, nao na maquina):
+#   docker run --rm -v "$$PWD":/src -w /src -e EM_CACHE=/tmp/emcache \
+#     emscripten/emsdk:latest make -f Makefile.web
+#
+# -D_POSIX_C_SOURCE=200809L e obrigatorio: com -std=c11 estrito a musl do
+# Emscripten nao declara localtime_r nem nanosleep, usados por lume_stdlib.c.
+
+EMCC ?= emcc
+WEB_CPPFLAGS := -Isrc -D_POSIX_C_SOURCE=200809L
+WEB_CFLAGS   := -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Os
+DIST         := web/dist
+
+CORE_SOURCES := $(filter-out src/main.c,$(wildcard src/*.c))
+WEB_SOURCES  := $(CORE_SOURCES) src/web/lume_web.c
+
+# -sSTACK_SIZE=4MB e obrigatorio, nao ajuste fino: o padrao do Emscripten e
+# 64 KB, e cada chamada de funcao Lume consome varios KB de pilha C. Com o
+# padrao, uma recursao de profundidade ~16 corrompe a memoria em silencio
+# (fat(19) devolve vazio, fat(20) inventa um erro de sintaxe). 4MB equivale a
+# pilha que o SO da ao binario nativo. Alem disso, o interpretador precisa do
+# limite de profundidade (LUME_MAX_CALL_DEPTH) para que recursao infinita vire
+# diagnostico em vez de estouro.
+EMFLAGS := \
+  -sMODULARIZE=1 -sEXPORT_NAME=createLume \
+  -sSTACK_SIZE=4MB -sINITIAL_MEMORY=64MB \
+  -sEXPORTED_FUNCTIONS=_lume_web_eval,_lume_web_cli,_lume_web_free,_malloc,_free \
+  -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS,stringToNewUTF8,UTF8ToString,setValue \
+  -sALLOW_MEMORY_GROWTH -sINVOKE_RUN=0 -sEXIT_RUNTIME=0
+
+.PHONY: web web-test web-clean
+web: $(DIST)/lume.js
+
+$(DIST)/lume.js: $(WEB_SOURCES)
+	@mkdir -p $(DIST)
+	$(EMCC) $(WEB_CPPFLAGS) $(WEB_CFLAGS) $(WEB_SOURCES) -o $@ $(EMFLAGS) -lm
+	@cp -f web/public/* $(DIST)/ 2>/dev/null || true
+	@ls -l $(DIST)/lume.wasm
+
+# Verifica o bundle sob Node: fmemopen/open_memstream, leia(), MEMFS, projetos.
+web-test: $(DIST)/lume.js
+	node web/tools/prova.cjs $(DIST)/lume.js
+
+web-clean:
+	$(RM) -r $(DIST)

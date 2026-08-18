@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Lume — verificacao do bundle</title>
+<style>
+ body{font:15px/1.5 system-ui,sans-serif;max-width:52rem;margin:3rem auto;padding:0 1rem}
+ textarea{width:100%;font:13px/1.45 ui-monospace,monospace;padding:.6rem}
+ pre{background:#f4f4f5;padding:.8rem;border-radius:6px;white-space:pre-wrap;min-height:3rem}
+ button{font:inherit;padding:.45rem 1rem}
+ .aviso{background:#fff7ed;border-left:3px solid #ea580c;padding:.7rem 1rem;font-size:14px}
+</style>
+<h1>Lume — verificação do bundle</h1>
+<p class="aviso"><strong>Isto não é o playground.</strong> É uma página mínima para
+confirmar que o <code>.wasm</code> carrega e executa no navegador. A interface de
+verdade — editor, worker, botão de parar, depurador visual — é o passo 3.</p>
+
+<p><label>Código<br><textarea id="codigo" rows="7">variavel s = 0
+para i de 1 ate 10 {
+  s = s + i
+}
+escreva("Soma: " + texto(s))</textarea></label></p>
+
+<p><label>Entrada do programa (faz o papel do stdin, lido por <code>leia()</code>)<br>
+<textarea id="entrada" rows="2"></textarea></label></p>
+
+<p><button id="rodar" disabled>Executando o carregamento…</button></p>
+<h3>Saída</h3><pre id="saida"></pre>
+
+<script src="lume.js"></script>
+<script>
+createLume().then(M => {
+  const botao = document.getElementById('rodar');
+  botao.textContent = 'Executar';
+  botao.disabled = false;
+  botao.onclick = () => {
+    const p = M.ccall('lume_web_eval', 'number', ['string','string'],
+      [document.getElementById('codigo').value, document.getElementById('entrada').value]);
+    document.getElementById('saida').textContent =
+      p ? M.UTF8ToString(p) : '(falha ao alocar a saída)';
+    if (p) M.ccall('lume_web_free', null, ['number'], [p]);
+  };
+}).catch(e => { document.getElementById('saida').textContent = 'Erro ao carregar: ' + e; });
+</script>
