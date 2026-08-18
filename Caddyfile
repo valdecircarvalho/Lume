@@ -12,10 +12,11 @@
 		X-Content-Type-Options       nosniff
 	}
 
-	@imutavel path *.wasm *.js
-	header @imutavel Cache-Control "public, max-age=31536000, immutable"
-	@html path / /index.html
-	header @html Cache-Control "no-cache"
+	# Sem "immutable" enquanto os nomes nao carregarem hash de conteudo: como
+	# lume.wasm mantem o mesmo nome a cada build, marcar imutavel faz o
+	# navegador servir o binario velho por um ano. Quando o bundle passar a
+	# gerar lume.<hash>.wasm, ai sim vale o cache longo.
+	header Cache-Control "no-cache"
 
 	file_server
 }
