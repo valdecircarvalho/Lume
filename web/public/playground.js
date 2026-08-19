@@ -14,17 +14,20 @@ const NATIVAS = new Set([
 ]);
 
 const EXEMPLOS = {
-  'Olá, mundo': 'variavel nome = "mundo"\nescreva("Olá, " + nome + "!")\n',
-  'Decisões': 'variavel idade = 20\n\nse idade >= 18 {\n  escreva("maior de idade")\n} senao {\n  escreva("menor de idade")\n}\n',
-  'Repetição': 'variavel soma = 0\n\npara i de 1 ate 10 {\n  soma = soma + i\n}\n\nescreva("A soma de 1 a 10 é " + texto(soma))\n',
-  'Listas': 'variavel notas = [7, 9, 6, 10]\nvariavel total = 0\n\npara i de 0 ate tamanho(notas) - 1 {\n  total = total + notas[i]\n}\n\nescreva("Média: " + texto(total / tamanho(notas)))\n',
-  'Funções': 'funcao dobro(x) {\n  retorne x * 2\n}\n\nfuncao saudacao(nome) {\n  retorne "Olá, " + nome + "!"\n}\n\nescreva(dobro(21))\nescreva(saudacao("Lume"))\n',
-  'Recursão': '// Toda recursão precisa de um caso base.\nfuncao fatorial(n) {\n  se n <= 1 {\n    retorne 1\n  }\n  retorne n * fatorial(n - 1)\n}\n\nescreva(fatorial(10))\n',
-  'Lendo entrada': '// Preencha o painel "Entrada do programa" ao lado,\n// uma linha para cada leia().\nescreva("Digite dois números:")\n\nvariavel a = inteiro(leia())\nvariavel b = inteiro(leia())\n\nescreva("A soma é " + texto(a + b))\n',
-  'Biblioteca padrão': 'importe "lume/matematica"\nimporte "lume/texto"\n\nescreva(matematica.raiz(144))\nescreva(texto.maiusculo("lume"))\n'
+  'Olá, mundo': { codigo: 'variavel nome = "mundo"\nescreva("Olá, " + nome + "!")\n' },
+  'Decisões': { codigo: 'variavel idade = 20\n\nse idade >= 18 {\n  escreva("maior de idade")\n} senao {\n  escreva("menor de idade")\n}\n' },
+  'Repetição': { codigo: 'variavel soma = 0\n\npara i de 1 ate 10 {\n  soma = soma + i\n}\n\nescreva("A soma de 1 a 10 é " + texto(soma))\n' },
+  'Listas': { codigo: 'variavel notas = [7, 9, 6, 10]\nvariavel total = 0\n\npara i de 0 ate tamanho(notas) - 1 {\n  total = total + notas[i]\n}\n\nescreva("Média: " + texto(total / tamanho(notas)))\n' },
+  'Funções': { codigo: 'funcao dobro(x) {\n  retorne x * 2\n}\n\nfuncao saudacao(nome) {\n  retorne "Olá, " + nome + "!"\n}\n\nescreva(dobro(21))\nescreva(saudacao("Lume"))\n' },
+  'Recursão': { codigo: '// Toda recursão precisa de um caso base.\nfuncao fatorial(n) {\n  se n <= 1 {\n    retorne 1\n  }\n  retorne n * fatorial(n - 1)\n}\n\nescreva(fatorial(10))\n' },
+  'Lendo entrada': {
+    codigo: '// Os números vêm do painel "Entrada do programa",\n// uma linha para cada leia().\nescreva("Digite dois números:")\n\nvariavel a = inteiro(leia())\nvariavel b = inteiro(leia())\n\nescreva("A soma é " + texto(a + b))\n',
+    entrada: '20\n22\n'
+  },
+  'Biblioteca padrão': { codigo: 'importe "lume/matematica"\nimporte "lume/texto"\n\nescreva(matematica.raiz(144))\nescreva(texto.maiusculo("lume"))\n' }
 };
 
-const CODIGO_INICIAL = EXEMPLOS['Olá, mundo'];
+const CODIGO_INICIAL = EXEMPLOS['Olá, mundo'].codigo;
 const CHAVE_RASCUNHO = 'lume:rascunho';
 
 const $ = (id) => document.getElementById(id);
@@ -148,7 +151,9 @@ function executar() {
   btRodar.disabled = true; btRodar.textContent = 'Executando…';
   btParar.hidden = false;
   elEstado.textContent = 'em execução'; elEstado.className = 'estado rodando';
-  elSaida.className = 'saida';
+  /* Sem isto, a saida da execucao anterior fica na tela durante a nova — e um
+     programa que trava parece ter respondido o que o anterior respondeu. */
+  limparSaida();
   worker.postMessage({ codigo: elCodigo.value, entrada: elEntrada.value });
 }
 
@@ -159,6 +164,8 @@ function parar() {
   mostrarSaida('Execução interrompida por você.', false);
   reiniciarWorker('interrompido');
 }
+
+function limparSaida() { elSaida.textContent = ''; elSaida.className = 'saida'; }
 
 function mostrarSaida(texto, ehErro) {
   elSaida.textContent = texto;
@@ -176,10 +183,12 @@ function montarExemplos() {
   }
   seletor.onchange = () => {
     if (!seletor.value) return;
-    elCodigo.value = EXEMPLOS[seletor.value];
-    if (seletor.value !== 'Lendo entrada') elEntrada.value = '';
-    else elEntrada.value = '20\n22\n';
-    seletor.value = ''; redesenhar(); elSaida.textContent = '';
+    const exemplo = EXEMPLOS[seletor.value];
+    elCodigo.value = exemplo.codigo;
+    /* A entrada de exemplo vive junto do codigo: se o rotulo do menu mudar, os
+       dois nao podem sair de sincronia. */
+    elEntrada.value = exemplo.entrada || '';
+    seletor.value = ''; redesenhar(); limparSaida();
   };
 }
 
@@ -225,7 +234,7 @@ elCodigo.addEventListener('scroll', sincronizarRolagem);
 elCodigo.addEventListener('keydown', tratarTecla);
 btRodar.addEventListener('click', executar);
 btParar.addEventListener('click', parar);
-$('limpar').addEventListener('click', () => { elSaida.textContent = ''; elSaida.className = 'saida'; });
+$('limpar').addEventListener('click', limparSaida);
 $('compartilhar').addEventListener('click', compartilhar);
 
 /* Ctrl/Cmd+Enter executa de dentro do editor. */

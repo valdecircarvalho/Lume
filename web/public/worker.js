@@ -27,12 +27,15 @@ onmessage = (evento) => {
   try {
     ponteiro = modulo.ccall('lume_web_eval', 'number', ['string', 'string'], [codigo, entrada]);
     const saida = ponteiro ? modulo.UTF8ToString(ponteiro) : '';
+    /* A string ja foi copiada para JS aqui, entao liberar antes de responder e
+       seguro — e garante que nada fica pendurado se o postMessage falhar. */
+    if (ponteiro) { modulo.ccall('lume_web_free', null, ['number'], [ponteiro]); ponteiro = 0; }
     postMessage({ tipo: 'resultado', saida: saida, ms: Math.round(performance.now() - inicio) });
   } catch (erro) {
     /* Chegar aqui significa que o wasm abortou (estouro de pilha, por exemplo).
-       O modulo nao e mais confiavel, entao a pagina descarta este worker. */
+       O modulo nao e mais confiavel: nao se chama free sobre a heap dele, porque
+       'ponteiro' pode ter ficado com lixo. A pagina descarta este worker. */
+    ponteiro = 0;
     postMessage({ tipo: 'abortou', mensagem: String(erro) });
-  } finally {
-    if (ponteiro) modulo.ccall('lume_web_free', null, ['number'], [ponteiro]);
   }
 };
