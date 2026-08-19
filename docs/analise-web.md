@@ -350,9 +350,11 @@ de uma unica decisao ja escopada (§2.4, Decisao 1):
 | **Docker / VM (Caddy, nginx)** | funciona | funciona (2 linhas de config) |
 | **GitHub Pages** | funciona | **impossivel** — nao permite cabecalhos |
 
-**Recomendacao para "a melhor experiencia possivel": auto-hospedar na VM atras do
-Caddy.** HTTPS automatico, cabecalhos em duas linhas, `Dockerfile` trivial, e
-controle total — o que mantem a porta do SAB aberta sem depender de ninguem.
+> **Decidido (2026-08-18): só localhost.** Sem domínio, sem HTTPS, sem VM. O
+> playground roda em `docker compose up -d` e responde em
+> `http://localhost:8080`. O texto abaixo fica como registro das opções que
+> foram consideradas; o Caddyfile já traz os cabeçalhos COOP/COEP, então a
+> porta do SharedArrayBuffer segue aberta se um dia fizer falta.
 Cloudflare Pages fica como espelho publico de custo zero do mesmo bundle, se
 quiser um endereco publico.
 
@@ -560,12 +562,12 @@ numa escola em vez de ser um brinquedo individual.
 3. ✅ Job `sanitize` adicionado ao `.github/workflows/ci.yml` — verde no CI.
 4. ⏸ `clang-format` no `src/` — movido para o backlog (§5.2), deliberadamente fora do PR.
 
-**Fase 1 — playground (≈1–2 semanas)**
-5. Spike de compilação Emscripten (§2.6).
-6. `src/web/lume_web.c` + `Makefile.web`.
-7. Worker + editor + painéis de saída/entrada.
-8. Callback de trace → JSON → linha do tempo do depurador visual (§2.4).
-9. Deploy no Cloudflare Pages.
+**Fase 1 — playground — ✅ CONCLUÍDA**
+5. ✅ Spike de compilação Emscripten — 154 KB, 15 suítes passando em wasm32.
+6. ✅ `src/web/lume_web.c` + `Makefile.wasm`.
+7. ✅ Worker + editor com realce + painéis de saída/entrada + parada real.
+8. ✅ Callback de trace → JSON → depurador visual com linha do tempo (§2.4).
+9. ⛔ Deploy público — cancelado a pedido: o uso é local, via `docker compose`.
 
 **Fase 2 — curso (projeto próprio)**
 10. Motor de lições + verificação de saída + `localStorage`.

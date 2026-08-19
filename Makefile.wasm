@@ -29,7 +29,7 @@ EMFLAGS := \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS,stringToNewUTF8,UTF8ToString,setValue \
   -sALLOW_MEMORY_GROWTH -sINVOKE_RUN=0 -sEXIT_RUNTIME=0
 
-.PHONY: web web-test web-test-nativo web-clean
+.PHONY: web web-test web-test-nativo web-serve web-parar web-clean
 web: $(DIST)/lume.js
 
 $(DIST)/lume.js: $(WEB_SOURCES)
@@ -51,6 +51,14 @@ web-test-nativo:
 	  -fsanitize=address,undefined -o /tmp/lume_teste_sequencia \
 	  $(CORE_SOURCES) src/web/lume_web.c src/web/lume_trace.c web/tools/teste_sequencia.c -lm
 	/tmp/lume_teste_sequencia
+
+# Sobe o playground em http://localhost:8080 (ou PORTA=9000 make ... web-serve).
+web-serve:
+	docker compose up --build -d
+	@echo "Playground em http://localhost:$(or $(PORTA),8080)"
+
+web-parar:
+	docker compose down
 
 web-clean:
 	$(RM) -r $(DIST)

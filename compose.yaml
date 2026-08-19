@@ -1,0 +1,13 @@
+# Playground da Lume rodando local. Nada de dominio nem HTTPS: so localhost.
+#
+#   docker compose up --build -d     sobe em http://localhost:8080
+#   docker compose logs -f           acompanha
+#   docker compose down              derruba
+#
+# Para trocar a porta: PORTA=9000 docker compose up -d
+services:
+  playground:
+    build: .
+    ports:
+      - "${PORTA:-8080}:8080"
+    restart: unless-stopped

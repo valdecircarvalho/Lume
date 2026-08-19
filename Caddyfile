@@ -1,5 +1,5 @@
-# Servidor do playground. A mesma config vale no container local e na VM;
-# so o endereco muda (`:8080` -> `lume.seu-dominio` para HTTPS automatico).
+# Servidor do playground, para uso local. Sem dominio e sem HTTPS: escuta em
+# :8080 dentro do container, publicado como http://localhost:8080.
 :8080 {
 	root * /srv
 	encode zstd gzip
