@@ -160,3 +160,20 @@ footer a { color: inherit; }
 .grade .mudou { background: color-mix(in srgb, var(--acento) 22%, transparent); }
 .grade .vazio { color: var(--suave); font-style: italic; opacity: 0.75; }
 button.grande { padding: 0.42rem 0.9rem; font-size: 0.88rem; }
+
+/* ---------- erro marcado no editor ---------- */
+.marca-erro {
+  position: absolute; pointer-events: auto; cursor: help; z-index: 1;
+  border-bottom: 2px wavy var(--erro);
+  text-decoration-skip-ink: none;
+  background: color-mix(in srgb, var(--erro) 12%, transparent);
+}
+.balao-erro {
+  position: absolute; z-index: 5; max-width: 26rem; pointer-events: none;
+  background: var(--superficie); color: var(--texto);
+  border: 1px solid var(--erro); border-left-width: 3px; border-radius: 6px;
+  padding: 0.45rem 0.65rem; font: 13px/1.45 system-ui, sans-serif;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+}
+.balao-erro .tipo { font-weight: 600; color: var(--erro); display: block; }
+.balao-erro .dica { display: block; margin-top: 0.3rem; color: var(--suave); }

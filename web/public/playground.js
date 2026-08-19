@@ -36,7 +36,7 @@ const elNumeros = $('numeros'), elEntrada = $('entrada'), elSaida = $('saida');
 const btRodar = $('rodar'), btParar = $('parar'), elEstado = $('estado');
 const btDepurar = $('depurar'), elDepurador = $('depurador'), elTempo = $('linha-do-tempo');
 const elDescricao = $('descricao-passo'), elQuadros = $('quadros');
-const elLinhaAtual = $('linha-atual');
+const elLinhaAtual = $('linha-atual'), elMarcaErro = $('marca-erro'), elBalaoErro = $('balao-erro');
 
 /* ---------- realce de sintaxe ---------- */
 
@@ -76,6 +76,7 @@ function sincronizarRolagem() {
   elRealce.parentElement.scrollTop = elCodigo.scrollTop;
   elRealce.parentElement.scrollLeft = elCodigo.scrollLeft;
   elNumeros.scrollTop = elCodigo.scrollTop;
+  if (typeof posicionarMarcaErro === 'function') posicionarMarcaErro();
 }
 
 /* Tab indenta em vez de sair do campo — sair do campo com Tab surpreende
@@ -95,6 +96,86 @@ function tratarTecla(evento) {
     elCodigo.selectionStart = elCodigo.selectionEnd = ini + 2;
   }
   redesenhar();
+}
+
+/* ---------- erro marcado no editor ---------- */
+
+/* Todo LumeError ja carrega span.start e span.end — e o que o diagnostic_render
+   usa para desenhar o caret no terminal. Aqui o mesmo dado vira um sublinhado
+   sobre o trecho exato, para o aluno nao precisar contar linhas com o dedo a
+   partir do texto da saida. */
+let erroAtual = null;
+
+/* A fonte do editor e monoespacada, entao uma medida serve para toda a coluna.
+   Medir em vez de chutar mantem o alinhamento com zoom e fontes diferentes. */
+function larguraDoCaractere() {
+  const regua = document.createElement('span');
+  const estilo = getComputedStyle(elCodigo);
+  regua.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+  regua.style.font = estilo.font;
+  regua.textContent = '0'.repeat(40);
+  elCodigo.parentElement.appendChild(regua);
+  const largura = regua.getBoundingClientRect().width / 40;
+  regua.remove();
+  return largura;
+}
+
+function marcarErro(erro) {
+  erroAtual = erro && erro.linha >= 1 ? erro : null;
+  posicionarMarcaErro();
+}
+
+function posicionarMarcaErro() {
+  if (erroAtual === null) { elMarcaErro.hidden = true; elBalaoErro.hidden = true; return; }
+  const totalLinhas = elCodigo.value.split('\n').length;
+  if (erroAtual.linha > totalLinhas) { elMarcaErro.hidden = true; return; }
+  const estilo = getComputedStyle(elCodigo);
+  const alturaLinha = parseFloat(estilo.lineHeight);
+  const largura = larguraDoCaractere();
+  const esquerda = parseFloat(estilo.paddingLeft);
+  const topo = parseFloat(estilo.paddingTop);
+  /* Um erro pode abranger varias linhas; sublinhar so a primeira e honesto e
+     evita marcar um bloco inteiro por causa de um caractere. */
+  const colunaFim = erroAtual.linhaFim === erroAtual.linha
+    ? Math.max(erroAtual.colunaFim, erroAtual.coluna + 1)
+    : (elCodigo.value.split('\n')[erroAtual.linha - 1] || '').length + 1;
+  elMarcaErro.style.left = (esquerda + (erroAtual.coluna - 1) * largura - elCodigo.scrollLeft) + 'px';
+  elMarcaErro.style.width = Math.max(largura, (colunaFim - erroAtual.coluna) * largura) + 'px';
+  elMarcaErro.style.top = (topo + (erroAtual.linha - 1) * alturaLinha - elCodigo.scrollTop) + 'px';
+  elMarcaErro.style.height = alturaLinha + 'px';
+  elMarcaErro.hidden = false;
+}
+
+function mostrarBalao() {
+  if (erroAtual === null) return;
+  elBalaoErro.innerHTML =
+    '<span class="tipo">' + escaparHtml(erroAtual.tipo) + '</span>' +
+    escaparHtml(erroAtual.mensagem) +
+    (erroAtual.dica ? '<span class="dica">' + escaparHtml(erroAtual.dica) + '</span>' : '');
+  const alturaLinha = parseFloat(getComputedStyle(elCodigo).lineHeight);
+  elBalaoErro.hidden = false;
+  /* Abaixo da linha, a menos que nao caiba — aí acima, para nao sair do editor. */
+  const topoMarca = parseFloat(elMarcaErro.style.top);
+  const cabeAbaixo = topoMarca + alturaLinha + elBalaoErro.offsetHeight < elCodigo.clientHeight;
+  elBalaoErro.style.top = (cabeAbaixo ? topoMarca + alturaLinha + 2
+                                      : topoMarca - elBalaoErro.offsetHeight - 2) + 'px';
+  elBalaoErro.style.left = Math.max(4, parseFloat(elMarcaErro.style.left) - 8) + 'px';
+}
+
+elMarcaErro.addEventListener('mouseenter', mostrarBalao);
+elMarcaErro.addEventListener('mouseleave', () => { elBalaoErro.hidden = true; });
+
+/* Leva o erro para dentro da area visivel: um erro fora da rolagem e igual a
+   nao ter marcado nada. */
+function rolarAteOErro() {
+  if (erroAtual === null) return;
+  const alturaLinha = parseFloat(getComputedStyle(elCodigo).lineHeight);
+  const topo = parseFloat(getComputedStyle(elCodigo).paddingTop) + (erroAtual.linha - 1) * alturaLinha;
+  if (topo < elCodigo.scrollTop || topo > elCodigo.scrollTop + elCodigo.clientHeight - alturaLinha) {
+    elCodigo.scrollTop = Math.max(0, topo - elCodigo.clientHeight / 2);
+    sincronizarRolagem();
+  }
+  posicionarMarcaErro();
 }
 
 /* ---------- ciclo de vida do worker ---------- */
@@ -120,7 +201,9 @@ function criarWorker() {
     }
     if (dados.tipo === 'resultado') {
       terminarExecucao();
-      mostrarSaida(dados.saida, /Erro (de|lexico|interno)/.test(dados.saida));
+      mostrarSaida(dados.saida, dados.erro !== null && dados.erro !== undefined);
+      marcarErro(dados.erro);
+      if (dados.erro) rolarAteOErro();
       elEstado.textContent = dados.ms >= 200 ? 'concluído em ' + dados.ms + ' ms' : 'concluído';
       if (dados.modo === 'passo') abrirDepurador(dados);
       return;
@@ -162,7 +245,7 @@ function executar(modo) {
   elEstado.textContent = 'em execução'; elEstado.className = 'estado rodando';
   /* Sem isto, a saida da execucao anterior fica na tela durante a nova — e um
      programa que trava parece ter respondido o que o anterior respondeu. */
-  limparSaida();
+  limparSaida(); marcarErro(null);
   worker.postMessage({ codigo: elCodigo.value, entrada: elEntrada.value, modo: modoAtual });
 }
 
@@ -378,13 +461,18 @@ function compartilhar() {
 /* ---------- ligacao ---------- */
 
 elCodigo.value = codigoInicial();
-elCodigo.addEventListener('input', () => { redesenhar(); if (!elDepurador.hidden) fecharDepurador(); });
+elCodigo.addEventListener('input', () => {
+  redesenhar();
+  /* Editar invalida a posicao do erro: o trecho marcado pode nem existir mais. */
+  marcarErro(null);
+  if (!elDepurador.hidden) fecharDepurador();
+});
 elCodigo.addEventListener('scroll', sincronizarRolagem);
 elCodigo.addEventListener('keydown', tratarTecla);
 btRodar.addEventListener('click', () => executar('normal'));
 btDepurar.addEventListener('click', () => executar('passo'));
 btParar.addEventListener('click', parar);
-$('limpar').addEventListener('click', limparSaida);
+$('limpar').addEventListener('click', () => { limparSaida(); marcarErro(null); });
 $('compartilhar').addEventListener('click', compartilhar);
 
 /* Ctrl/Cmd+Enter executa de dentro do editor. */

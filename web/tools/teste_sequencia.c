@@ -63,6 +63,12 @@ int main(void) {
     esperar("funcao",    "funcao f(n) {\n retorne n * 2\n}\nescreva(f(21))\n", "", "42");
     esperar("recursao",  "funcao f(n) {\n se n <= 1 {\n  retorne 1\n }\n retorne n * f(n-1)\n}\nescreva(f(10))\n", "", "3628800");
     esperar("erro nome", "escreva(xyz)\n", "", "Nome: 'xyz'");
+    /* O span do erro precisa chegar estruturado ao JavaScript: e o que permite
+       sublinhar o trecho no editor em vez de o aluno contar linhas. */
+    esperar("erro localizado", "variavel a = 1\nescreva(xyz)\n", "",
+            "\"linha\":2,\"coluna\":9,\"linhaFim\":2,\"colunaFim\":12");
+    esperar("erro com dica", "variavel = 1\n", "", "\"dica\":\"");
+    esperar("sem erro vira null", "escreva(1)\n", "", "\"erro\":null");
     esperar("erro sintaxe", "variavel = 1\n", "", "Erro de sintaxe");
     esperar("recursao infinita", "funcao g() {\n retorne g()\n}\nescreva(g())\n", "", "vezes demais");
     esperar("lista",     "variavel l = [1,2,3]\nescreva(tamanho(l))\n", "", "3");

@@ -32,13 +32,12 @@ onmessage = (evento) => {
        seguro — e garante que nada fica pendurado se o postMessage falhar. */
     if (ponteiro) { modulo.ccall('lume_web_free', null, ['number'], [ponteiro]); ponteiro = 0; }
     const ms = Math.round(performance.now() - inicio);
-    if (modo === 'passo') {
-      const fita = JSON.parse(bruto);
-      postMessage({ tipo: 'resultado', modo: 'passo', saida: fita.saida, eventos: fita.eventos,
-                    total: fita.total, truncado: fita.truncado, ms: ms });
-    } else {
-      postMessage({ tipo: 'resultado', saida: bruto, ms: ms });
-    }
+    /* Os dois modos respondem o mesmo formato: { saida, erro, ... }. O erro vem
+       com a localizacao exata, para o editor sublinhar o trecho. */
+    const r = JSON.parse(bruto);
+    postMessage({ tipo: 'resultado', modo: modo === 'passo' ? 'passo' : 'normal',
+                  saida: r.saida, erro: r.erro, eventos: r.eventos,
+                  total: r.total, truncado: r.truncado, ms: ms });
   } catch (erro) {
     /* Chegar aqui significa que o wasm abortou (estouro de pilha, por exemplo).
        O modulo nao e mais confiavel: nao se chama free sobre a heap dele, porque
