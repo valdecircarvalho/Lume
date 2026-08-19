@@ -35,7 +35,7 @@ const elCodigo = $('codigo'), elRealce = $('realce').firstElementChild;
 const elNumeros = $('numeros'), elEntrada = $('entrada'), elSaida = $('saida');
 const btRodar = $('rodar'), btParar = $('parar'), elEstado = $('estado');
 const btDepurar = $('depurar'), elDepurador = $('depurador'), elTempo = $('linha-do-tempo');
-const elDescricao = $('descricao-passo'), elVariaveis = $('variaveis'), elPilha = $('pilha');
+const elDescricao = $('descricao-passo'), elQuadros = $('quadros');
 const elLinhaAtual = $('linha-atual');
 
 /* ---------- realce de sintaxe ---------- */
@@ -254,8 +254,7 @@ function irPara(indice) {
   const evento = fita[passo];
   elDescricao.innerHTML = '<span class="passo-n">' + (passo + 1) + '/' + fita.length + '</span> &nbsp; ' + descrever(evento);
   destacarLinha(evento.l);
-  mostrarVariaveis(evento, passo > 0 ? fita[passo - 1] : null);
-  mostrarPilha(evento);
+  mostrarQuadros(evento, passo > 0 ? fita[passo - 1] : null);
 }
 
 /* Posiciona a faixa pela altura de linha real, medida do elemento de numeros —
@@ -279,31 +278,34 @@ function destacarLinha(linha) {
   }
 }
 
-function mostrarVariaveis(evento, anterior) {
-  const atuais = evento.v || [];
-  if (atuais.length === 0) { elVariaveis.innerHTML = '<span class="vazio">nenhuma variável ainda</span>'; return; }
-  const antes = new Map((anterior && anterior.v ? anterior.v : []).map((x) => [x.n, x.v]));
-  elVariaveis.innerHTML = atuais.map((x) => {
-    const mudou = antes.has(x.n) ? antes.get(x.n) !== x.v : anterior !== null;
-    return '<div class="par' + (mudou ? ' mudou' : '') + '">' +
-      '<span class="nome">' + escaparHtml(x.n) + '</span>' +
-      '<span class="valor">' + escaparHtml(x.v) + '</span></div>';
+/* Um bloco por chamada em andamento, do mais externo para o mais interno — como
+   o Python Tutor faz. Uma lista unica seria enganosa em recursao: em
+   fatorial(4) o aluno veria um `n` so, parecendo que a variavel foi
+   sobrescrita, quando na verdade existem quatro, um por chamada. */
+function mostrarQuadros(evento, anterior) {
+  const quadros = evento.v || [];
+  if (quadros.length === 0) { elQuadros.innerHTML = '<span class="vazio">nada em execução</span>'; return; }
+  /* Compara com o passo anterior pelo par (posição do quadro, nome) para
+     destacar o que mudou sem confundir variaveis homonimas de quadros
+     diferentes — o caso exato da recursao. */
+  const antes = new Map();
+  (anterior && anterior.v ? anterior.v : []).forEach((quadro, i) => {
+    (quadro.vars || []).forEach((v) => antes.set(i + '\u0000' + v.n, v.v));
+  });
+  elQuadros.innerHTML = quadros.map((quadro, i) => {
+    const atual = i === quadros.length - 1 && quadros.length > 1;
+    const vars = (quadro.vars || []).map((v) => {
+      const chave = i + '\u0000' + v.n;
+      const mudou = antes.has(chave) ? antes.get(chave) !== v.v : anterior !== null;
+      return '<div class="par' + (mudou ? ' mudou' : '') + '">' +
+        '<span class="nome">' + escaparHtml(v.n) + '</span>' +
+        '<span class="valor">' + escaparHtml(v.v) + '</span></div>';
+    }).join('') || '<div class="par vazio">sem variáveis</div>';
+    return '<div class="quadro' + (atual ? ' quadro-atual' : '') + '">' +
+      '<div class="quadro-titulo">' + escaparHtml(quadro.q) +
+      (atual ? '<span class="etiqueta">executando</span>' : '') + '</div>' +
+      vars + '</div>';
   }).join('');
-}
-
-/* Reconstitui a pilha varrendo a fita para tras: cada 'entra-funcao' de
-   profundidade menor que a anterior e o chamador. */
-function mostrarPilha(evento) {
-  const quadros = [];
-  let esperada = evento.p;
-  for (let i = passo; i >= 0 && esperada > 0; i--) {
-    const e = fita[i];
-    if (e.t === 'entra-funcao' && e.p === esperada) { quadros.push(e.n); esperada--; }
-  }
-  quadros.push('principal');
-  elPilha.innerHTML = quadros.map((nome, i) =>
-    '<div class="quadro"><span class="prof">' + (quadros.length - 1 - i) + '</span> ' + escaparHtml(nome) + '</div>'
-  ).join('');
 }
 
 elTempo.addEventListener('input', () => irPara(Number(elTempo.value)));

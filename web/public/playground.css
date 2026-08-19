@@ -130,23 +130,33 @@ footer a { color: inherit; }
   background: color-mix(in srgb, var(--acento) 13%, transparent);
   padding: 0.05em 0.3em; border-radius: 3px;
 }
-.inspetor { display: grid; grid-template-columns: 1.6fr 1fr; gap: 0.9rem; }
-@media (max-width: 620px) { .inspetor { grid-template-columns: 1fr; } }
 .inspetor h3 {
   margin: 0 0 0.35rem; font-size: 0.72rem; text-transform: uppercase;
   letter-spacing: 0.07em; color: var(--suave); font-weight: 600;
 }
+.dica-inspetor { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: 0.8; margin-left: 0.5rem; }
 .grade {
   font: var(--fonte-codigo)/1.7 var(--mono);
   background: var(--realce-fundo); border: 1px solid var(--borda);
-  border-radius: 6px; padding: 0.45rem 0.6rem; min-height: 4.5rem;
-  max-height: 11rem; overflow: auto;
+  border-radius: 6px; padding: 0.4rem; max-height: 13rem; overflow: auto;
 }
-.grade .par { display: flex; gap: 0.5rem; }
-.grade .nome { color: var(--nat); flex: 0 0 auto; }
+.grade .quadro {
+  border: 1px solid var(--borda); border-radius: 5px;
+  padding: 0.3rem 0.5rem 0.35rem; margin-bottom: 0.35rem; background: var(--superficie);
+}
+.grade .quadro:last-child { margin-bottom: 0; }
+.grade .quadro-atual { border-color: var(--acento); }
+.grade .quadro-titulo {
+  font-size: 0.78rem; color: var(--nat); font-weight: 600;
+  display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.15rem;
+}
+.grade .etiqueta {
+  font: 400 0.68rem/1 system-ui, sans-serif; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--acento);
+}
+.grade .par { display: flex; gap: 0.6rem; padding: 0 0.15rem; border-radius: 3px; }
+.grade .nome { color: var(--suave); flex: 0 0 auto; min-width: 3.5rem; }
 .grade .valor { color: var(--texto); word-break: break-all; }
-.grade .mudou { background: color-mix(in srgb, var(--acento) 20%, transparent); border-radius: 3px; }
+.grade .mudou { background: color-mix(in srgb, var(--acento) 22%, transparent); }
 .grade .vazio { color: var(--suave); font-style: italic; opacity: 0.75; }
-.grade .quadro { color: var(--texto); }
-.grade .quadro .prof { color: var(--suave); }
 button.grande { padding: 0.42rem 0.9rem; font-size: 0.88rem; }
