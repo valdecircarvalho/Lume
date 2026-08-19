@@ -9,6 +9,17 @@
   <p class="sub">Uma linguagem de programação em português. Escreva e execute aqui mesmo — não precisa instalar nada.</p>
 </header>
 
+<section class="boas-vindas" id="boas-vindas" hidden>
+  <h2>Comece por um exemplo</h2>
+  <p>
+    Escolha um programa abaixo e clique em <strong>Executar</strong>. Depois clique em
+    <strong>Passo a passo</strong> para ver o programa executar linha a linha, com as
+    variáveis mudando na sua frente — dá para avançar e <em>voltar</em>.
+  </p>
+  <div class="cartoes" id="cartoes"></div>
+  <button id="fechar-boas-vindas" class="secundario" type="button">Prefiro escrever do zero</button>
+</section>
+
 <main>
   <section class="painel" id="painel-editor">
     <div class="cabecalho">
@@ -38,6 +49,9 @@
       <button id="depurar" type="button" class="secundario grande" disabled>Passo a passo</button>
       <button id="parar" type="button" class="perigo" hidden>Parar</button>
       <span id="estado" class="estado"></span>
+      <span class="atalhos" aria-hidden="true">
+        <kbd>Ctrl</kbd>+<kbd>Enter</kbd> executa · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> passo a passo
+      </span>
     </div>
 
     <div class="depurador" id="depurador" hidden>

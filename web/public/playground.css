@@ -177,3 +177,30 @@ button.grande { padding: 0.42rem 0.9rem; font-size: 0.88rem; }
 }
 .balao-erro .tipo { font-weight: 600; color: var(--erro); display: block; }
 .balao-erro .dica { display: block; margin-top: 0.3rem; color: var(--suave); }
+
+/* ---------- primeira visita ---------- */
+.boas-vindas {
+  max-width: 78rem; margin: 0.5rem auto 0; padding: 1.1rem 1.3rem 1.2rem;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 10px;
+}
+.boas-vindas h2 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+.boas-vindas > p { margin: 0 0 0.9rem; color: var(--suave); font-size: 0.92rem; max-width: 52rem; }
+.boas-vindas strong { color: var(--texto); }
+.cartoes {
+  display: grid; gap: 0.55rem; margin-bottom: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+}
+.cartao {
+  text-align: left; padding: 0.6rem 0.75rem; border: 1px solid var(--borda);
+  border-radius: 8px; background: var(--fundo); cursor: pointer; font: inherit;
+  display: flex; flex-direction: column; gap: 0.15rem;
+}
+.cartao:hover { border-color: var(--acento); }
+.cartao .nome { font-weight: 600; font-size: 0.9rem; color: var(--texto); }
+.cartao .ensina { font-size: 0.81rem; color: var(--suave); line-height: 1.35; }
+.atalhos { margin-left: auto; font-size: 0.78rem; color: var(--suave); }
+@media (max-width: 760px) { .atalhos { display: none; } }
+.atalhos kbd {
+  font: 0.9em var(--mono); background: var(--realce-fundo);
+  border: 1px solid var(--borda); border-radius: 3px; padding: 0.05em 0.3em;
+}

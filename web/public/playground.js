@@ -14,17 +14,18 @@ const NATIVAS = new Set([
 ]);
 
 const EXEMPLOS = {
-  'Olá, mundo': { codigo: 'variavel nome = "mundo"\nescreva("Olá, " + nome + "!")\n' },
-  'Decisões': { codigo: 'variavel idade = 20\n\nse idade >= 18 {\n  escreva("maior de idade")\n} senao {\n  escreva("menor de idade")\n}\n' },
-  'Repetição': { codigo: 'variavel soma = 0\n\npara i de 1 ate 10 {\n  soma = soma + i\n}\n\nescreva("A soma de 1 a 10 é " + texto(soma))\n' },
-  'Listas': { codigo: 'variavel notas = [7, 9, 6, 10]\nvariavel total = 0\n\npara i de 0 ate tamanho(notas) - 1 {\n  total = total + notas[i]\n}\n\nescreva("Média: " + texto(total / tamanho(notas)))\n' },
-  'Funções': { codigo: 'funcao dobro(x) {\n  retorne x * 2\n}\n\nfuncao saudacao(nome) {\n  retorne "Olá, " + nome + "!"\n}\n\nescreva(dobro(21))\nescreva(saudacao("Lume"))\n' },
-  'Recursão': { codigo: '// Toda recursão precisa de um caso base.\nfuncao fatorial(n) {\n  se n <= 1 {\n    retorne 1\n  }\n  retorne n * fatorial(n - 1)\n}\n\nescreva(fatorial(10))\n' },
+  'Olá, mundo': { ensina: 'escrever na tela e juntar textos', codigo: 'variavel nome = "mundo"\nescreva("Olá, " + nome + "!")\n' },
+  'Decisões': { ensina: 'escolher um caminho com se e senao', codigo: 'variavel idade = 20\n\nse idade >= 18 {\n  escreva("maior de idade")\n} senao {\n  escreva("menor de idade")\n}\n' },
+  'Repetição': { ensina: 'repetir com para e acumular um total', codigo: 'variavel soma = 0\n\npara i de 1 ate 10 {\n  soma = soma + i\n}\n\nescreva("A soma de 1 a 10 é " + texto(soma))\n' },
+  'Listas': { ensina: 'guardar vários valores e percorrê-los', codigo: 'variavel notas = [7, 9, 6, 10]\nvariavel total = 0\n\npara i de 0 ate tamanho(notas) - 1 {\n  total = total + notas[i]\n}\n\nescreva("Média: " + texto(total / tamanho(notas)))\n' },
+  'Funções': { ensina: 'dar nome a um pedaço de programa', codigo: 'funcao dobro(x) {\n  retorne x * 2\n}\n\nfuncao saudacao(nome) {\n  retorne "Olá, " + nome + "!"\n}\n\nescreva(dobro(21))\nescreva(saudacao("Lume"))\n' },
+  'Recursão': { ensina: 'uma função que chama a si mesma', codigo: '// Toda recursão precisa de um caso base.\nfuncao fatorial(n) {\n  se n <= 1 {\n    retorne 1\n  }\n  retorne n * fatorial(n - 1)\n}\n\nescreva(fatorial(10))\n' },
   'Lendo entrada': {
+    ensina: 'ler dados digitados com leia()',
     codigo: '// Os números vêm do painel "Entrada do programa",\n// uma linha para cada leia().\nescreva("Digite dois números:")\n\nvariavel a = inteiro(leia())\nvariavel b = inteiro(leia())\n\nescreva("A soma é " + texto(a + b))\n',
     entrada: '20\n22\n'
   },
-  'Biblioteca padrão': { codigo: 'importe "lume/matematica"\nimporte "lume/texto"\n\nescreva(matematica.raiz(144))\nescreva(texto.maiusculo("lume"))\n' }
+  'Biblioteca padrão': { ensina: 'usar funções prontas com importe', codigo: 'importe "lume/matematica"\nimporte "lume/texto"\n\nescreva(matematica.raiz(144))\nescreva(texto.maiusculo("lume"))\n' }
 };
 
 const CODIGO_INICIAL = EXEMPLOS['Olá, mundo'].codigo;
@@ -406,22 +407,61 @@ document.addEventListener('keydown', (evento) => {
 
 /* ---------- exemplos, rascunho e link ---------- */
 
+function carregarExemplo(nome) {
+  const exemplo = EXEMPLOS[nome];
+  if (!exemplo) return;
+  elCodigo.value = exemplo.codigo;
+  /* A entrada de exemplo vive junto do codigo: se o rotulo mudar, os dois nao
+     podem sair de sincronia. */
+  elEntrada.value = exemplo.entrada || '';
+  redesenhar(); limparSaida(); marcarErro(null); fecharDepurador();
+}
+
 function montarExemplos() {
-  const seletor = $('exemplos');
+  const seletor = $('exemplos'), cartoes = $('cartoes');
   for (const nome of Object.keys(EXEMPLOS)) {
     const opcao = document.createElement('option');
     opcao.value = nome; opcao.textContent = nome;
     seletor.appendChild(opcao);
+
+    /* Os mesmos exemplos, visiveis em vez de escondidos num menu: quem chega
+       pela primeira vez precisa ver o que da para fazer, nao adivinhar. */
+    const cartao = document.createElement('button');
+    cartao.type = 'button'; cartao.className = 'cartao';
+    cartao.innerHTML = '<span class="nome">' + escaparHtml(nome) + '</span>' +
+                       '<span class="ensina">' + escaparHtml(EXEMPLOS[nome].ensina) + '</span>';
+    cartao.onclick = () => { carregarExemplo(nome); fecharBoasVindas(); };
+    cartoes.appendChild(cartao);
   }
   seletor.onchange = () => {
     if (!seletor.value) return;
-    const exemplo = EXEMPLOS[seletor.value];
-    elCodigo.value = exemplo.codigo;
-    /* A entrada de exemplo vive junto do codigo: se o rotulo do menu mudar, os
-       dois nao podem sair de sincronia. */
-    elEntrada.value = exemplo.entrada || '';
-    seletor.value = ''; redesenhar(); limparSaida();
+    carregarExemplo(seletor.value);
+    seletor.value = '';
   };
+}
+
+/* ---------- primeira visita ---------- */
+
+const CHAVE_VISITOU = 'lume:visitou';
+
+/* Um editor com uma caixa de codigo nao conta a quem chegou que existe um modo
+   passo a passo — que e a razao de o site existir. O painel aparece so na
+   primeira visita, e some assim que a pessoa escolhe alguma coisa. */
+function abrirBoasVindasSePrimeiraVez() {
+  let jaVisitou = false, temRascunho = false;
+  try {
+    jaVisitou = localStorage.getItem(CHAVE_VISITOU) === '1';
+    const salvo = localStorage.getItem(CHAVE_RASCUNHO);
+    temRascunho = salvo !== null && salvo.trim() !== '' && salvo !== CODIGO_INICIAL;
+  } catch (_) { /* modo privado: mostra o painel, que e o melhor padrao */ }
+  const veioDeLink = location.hash.startsWith('#c=');
+  if (jaVisitou || temRascunho || veioDeLink) return;
+  $('boas-vindas').hidden = false;
+}
+
+function fecharBoasVindas() {
+  $('boas-vindas').hidden = true;
+  try { localStorage.setItem(CHAVE_VISITOU, '1'); } catch (_) { /* modo privado */ }
 }
 
 /* O codigo vai no fragmento da URL (#), que nunca chega a servidor nenhum. */
@@ -482,6 +522,11 @@ document.addEventListener('keydown', (evento) => {
   }
 });
 
+$('fechar-boas-vindas').addEventListener('click', fecharBoasVindas);
+btRodar.addEventListener('click', fecharBoasVindas);
+btDepurar.addEventListener('click', fecharBoasVindas);
+
 montarExemplos();
+abrirBoasVindasSePrimeiraVez();
 redesenhar();
 criarWorker();
