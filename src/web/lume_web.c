@@ -1,6 +1,12 @@
 /* Camada de embedding para WebAssembly. Nao e usada pelo build nativo.
    Traduz a API de src/session.h para algo chamavel do JavaScript. */
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#else
+/* Compilar nativamente permite exercitar este arquivo sob ASan/UBSan, que e
+   como o double-free do ciclo de vida da fonte foi encontrado. */
+#define EMSCRIPTEN_KEEPALIVE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,10 +20,13 @@
 EMSCRIPTEN_KEEPALIVE
 char *lume_web_eval(const char *codigo, const char *entrada) {
     LumeSession sessao; ErrorList erros; Source *fonte = NULL; RuntimeIO io;
-    char *saida = NULL; size_t tamanho = 0U; FILE *in, *out;
+    char *saida = NULL; size_t tamanho = 0U; FILE *in, *out; bool ok;
     if (codigo == NULL) codigo = "";
     if (entrada == NULL) entrada = "";
-    in = fmemopen((void *)entrada, strlen(entrada), "r");
+    /* fmemopen com tamanho 0 devolve NULL em algumas libc; sem entrada, um
+       arquivo vazio de verdade e mais seguro do que depender disso. */
+    in = strlen(entrada) > 0U ? fmemopen((void *)entrada, strlen(entrada), "r")
+                              : fopen("/dev/null", "r");
     out = open_memstream(&saida, &tamanho);
     if (in == NULL || out == NULL) {
         if (in != NULL) fclose(in);
@@ -26,11 +35,14 @@ char *lume_web_eval(const char *codigo, const char *entrada) {
     }
     io.input = in; io.output = out;
     session_init(&sessao, io); error_list_init(&erros);
-    if (!session_execute(&sessao, "principal.lume", codigo, strlen(codigo),
-                         false, &fonte, &erros) && erros.count > 0U) {
-        diagnostic_render(out, fonte, &erros.data[0]);
-    }
-    if (fonte != NULL) { source_free(fonte); memory_free(fonte); }
+    ok = session_execute(&sessao, "principal.lume", codigo, strlen(codigo),
+                         false, &fonte, &erros);
+    if (!ok && erros.count > 0U) diagnostic_render(out, fonte, &erros.data[0]);
+    /* So o caminho de erro devolve a posse da fonte. Quando a execucao da
+       certo, a sessao a retem (programas com funcoes) ou ja a liberou. Liberar
+       aqui nos dois casos e um double-free: nao aparece no primeiro programa,
+       mas corrompe o heap e derruba a sessao alguns programas depois. */
+    if (!ok && fonte != NULL) { source_free(fonte); memory_free(fonte); }
     error_list_free(&erros); session_free(&sessao);
     fclose(out); fclose(in);
     return saida;                 /* alocado pela libc: liberar com free */

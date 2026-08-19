@@ -29,7 +29,7 @@ EMFLAGS := \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS,stringToNewUTF8,UTF8ToString,setValue \
   -sALLOW_MEMORY_GROWTH -sINVOKE_RUN=0 -sEXIT_RUNTIME=0
 
-.PHONY: web web-test web-clean
+.PHONY: web web-test web-test-nativo web-clean
 web: $(DIST)/lume.js
 
 $(DIST)/lume.js: $(WEB_SOURCES)
@@ -41,6 +41,16 @@ $(DIST)/lume.js: $(WEB_SOURCES)
 # Verifica o bundle sob Node: fmemopen/open_memstream, leia(), MEMFS, projetos.
 web-test: $(DIST)/lume.js
 	node web/tools/prova.cjs $(DIST)/lume.js
+
+# Exercita o wrapper sob AddressSanitizer/UBSan com um compilador nativo. Cobre
+# o que o playground faz e a CLI nao: muitas sessoes no mesmo processo. Roda
+# fora do container, porque so precisa de um cc comum.
+#   make -f Makefile.wasm web-test-nativo
+web-test-nativo:
+	$(CC) -Isrc -std=c11 -D_POSIX_C_SOURCE=200809L -g -O1 \
+	  -fsanitize=address,undefined -o /tmp/lume_teste_sequencia \
+	  $(CORE_SOURCES) src/web/lume_web.c web/tools/teste_sequencia.c -lm
+	/tmp/lume_teste_sequencia
 
 web-clean:
 	$(RM) -r $(DIST)

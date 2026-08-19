@@ -1,42 +1,64 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Lume — verificacao do bundle</title>
-<style>
- body{font:15px/1.5 system-ui,sans-serif;max-width:52rem;margin:3rem auto;padding:0 1rem}
- textarea{width:100%;font:13px/1.45 ui-monospace,monospace;padding:.6rem}
- pre{background:#f4f4f5;padding:.8rem;border-radius:6px;white-space:pre-wrap;min-height:3rem}
- button{font:inherit;padding:.45rem 1rem}
- .aviso{background:#fff7ed;border-left:3px solid #ea580c;padding:.7rem 1rem;font-size:14px}
-</style>
-<h1>Lume — verificação do bundle</h1>
-<p class="aviso"><strong>Isto não é o playground.</strong> É uma página mínima para
-confirmar que o <code>.wasm</code> carrega e executa no navegador. A interface de
-verdade — editor, worker, botão de parar, depurador visual — é o passo 3.</p>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lume — experimente no navegador</title>
+<link rel="stylesheet" href="playground.css">
 
-<p><label>Código<br><textarea id="codigo" rows="7">variavel s = 0
-para i de 1 ate 10 {
-  s = s + i
-}
-escreva("Soma: " + texto(s))</textarea></label></p>
+<header>
+  <h1>Lume</h1>
+  <p class="sub">Uma linguagem de programação em português. Escreva e execute aqui mesmo — não precisa instalar nada.</p>
+</header>
 
-<p><label>Entrada do programa (faz o papel do stdin, lido por <code>leia()</code>)<br>
-<textarea id="entrada" rows="2"></textarea></label></p>
+<main>
+  <section class="painel" id="painel-editor">
+    <div class="cabecalho">
+      <h2>Programa</h2>
+      <div class="acoes">
+        <select id="exemplos" aria-label="Carregar um exemplo">
+          <option value="">Exemplos…</option>
+        </select>
+        <button id="compartilhar" class="secundario" type="button">Copiar link</button>
+      </div>
+    </div>
 
-<p><button id="rodar" disabled>Executando o carregamento…</button></p>
-<h3>Saída</h3><pre id="saida"></pre>
+    <div class="editor" id="editor">
+      <div class="numeros" id="numeros" aria-hidden="true"></div>
+      <div class="area">
+        <pre class="realce" id="realce" aria-hidden="true"><code></code></pre>
+        <textarea id="codigo" spellcheck="false" autocapitalize="off" autocomplete="off"
+                  autocorrect="off" aria-label="Código Lume"></textarea>
+      </div>
+    </div>
 
-<script src="lume.js"></script>
-<script>
-createLume().then(M => {
-  const botao = document.getElementById('rodar');
-  botao.textContent = 'Executar';
-  botao.disabled = false;
-  botao.onclick = () => {
-    const p = M.ccall('lume_web_eval', 'number', ['string','string'],
-      [document.getElementById('codigo').value, document.getElementById('entrada').value]);
-    document.getElementById('saida').textContent =
-      p ? M.UTF8ToString(p) : '(falha ao alocar a saída)';
-    if (p) M.ccall('lume_web_free', null, ['number'], [p]);
-  };
-}).catch(e => { document.getElementById('saida').textContent = 'Erro ao carregar: ' + e; });
-</script>
+    <div class="rodape-editor">
+      <button id="rodar" type="button" class="primario" disabled>Carregando…</button>
+      <button id="parar" type="button" class="perigo" hidden>Parar</button>
+      <span id="estado" class="estado"></span>
+    </div>
+  </section>
+
+  <section class="painel" id="painel-lateral">
+    <div class="cabecalho">
+      <h2>Entrada do programa</h2>
+    </div>
+    <p class="ajuda">Cada linha aqui é lida por uma chamada de <code>leia()</code>.</p>
+    <textarea id="entrada" spellcheck="false" aria-label="Entrada do programa"
+              placeholder="Deixe vazio se o programa não usa leia()"></textarea>
+
+    <div class="cabecalho">
+      <h2>Saída</h2>
+      <button id="limpar" class="secundario" type="button">Limpar</button>
+    </div>
+    <pre id="saida" class="saida" aria-live="polite"></pre>
+  </section>
+</main>
+
+<footer>
+  <p>
+    Lume é distribuída sob a Apache License 2.0 —
+    <a href="https://github.com/Ultra332/Lume">código-fonte</a>.
+    Tudo roda no seu navegador via WebAssembly; nada é enviado para nenhum servidor.
+  </p>
+</footer>
+
+<script src="playground.js"></script>

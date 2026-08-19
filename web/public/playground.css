@@ -1,0 +1,107 @@
+:root {
+  --fundo: #fbfbfa;      --superficie: #fff;    --borda: #e4e4e7;
+  --texto: #1c1c1f;      --suave: #6b6b76;      --realce-fundo: #f6f6f5;
+  --acento: #b45309;     --acento-forte: #92400e;
+  --kw: #7c3aed;         --str: #047857;        --num: #b45309;
+  --com: #8b8b96;        --nat: #1d4ed8;        --erro: #b91c1c;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --linha: 1.55;         --fonte-codigo: 13.5px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #17171a;    --superficie: #1e1e22;  --borda: #33333a;
+    --texto: #e8e8ea;    --suave: #9a9aa5;       --realce-fundo: #232329;
+    --acento: #fbbf24;   --acento-forte: #fcd34d;
+    --kw: #c4b5fd;       --str: #6ee7b7;         --num: #fcd34d;
+    --com: #6b6b76;      --nat: #93c5fd;         --erro: #fca5a5;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--fundo); color: var(--texto);
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header { padding: 1.6rem 1.5rem 0.6rem; max-width: 78rem; margin: 0 auto; }
+h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
+.sub { margin: 0.3rem 0 0; color: var(--suave); font-size: 0.94rem; }
+main {
+  max-width: 78rem; margin: 0 auto; padding: 1rem 1.5rem 2rem;
+  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 1.1rem;
+}
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+.painel {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: 10px; padding: 0.85rem; display: flex; flex-direction: column; min-width: 0;
+}
+.cabecalho { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+.cabecalho h2 { margin: 0; font-size: 0.78rem; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--suave); font-weight: 600; flex: 1; }
+.acoes { display: flex; gap: 0.4rem; }
+.ajuda { margin: 0 0 0.4rem; font-size: 0.82rem; color: var(--suave); }
+.ajuda code { font-family: var(--mono); font-size: 0.95em; }
+
+/* Editor: textarea transparente sobre uma camada de realce.
+   As metricas de fonte das duas camadas precisam bater exatamente. */
+.editor {
+  display: flex; border: 1px solid var(--borda); border-radius: 7px;
+  overflow: hidden; background: var(--realce-fundo); min-height: 19rem;
+}
+.numeros {
+  padding: 0.7rem 0.5rem 0.7rem 0.7rem; text-align: right; color: var(--suave);
+  font: var(--fonte-codigo)/var(--linha) var(--mono); user-select: none;
+  opacity: 0.55; overflow: hidden; flex: 0 0 auto; min-width: 2.4rem;
+}
+.area { position: relative; flex: 1; min-width: 0; }
+.realce, .area textarea {
+  margin: 0; padding: 0.7rem 0.8rem; border: 0;
+  font: var(--fonte-codigo)/var(--linha) var(--mono);
+  white-space: pre; overflow-wrap: normal; tab-size: 2;
+}
+.realce {
+  position: absolute; inset: 0; overflow: auto; pointer-events: none;
+  color: var(--texto); background: transparent;
+}
+.realce code { font: inherit; }
+.area textarea {
+  position: relative; width: 100%; height: 100%; resize: none; display: block;
+  background: transparent; color: transparent; caret-color: var(--texto);
+  overflow: auto; outline: none;
+}
+.tok-kw  { color: var(--kw); font-weight: 600; }
+.tok-str { color: var(--str); }
+.tok-num { color: var(--num); }
+.tok-com { color: var(--com); font-style: italic; }
+.tok-nat { color: var(--nat); }
+
+.rodape-editor { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.7rem; }
+button, select {
+  font: inherit; font-size: 0.88rem; padding: 0.42rem 0.9rem;
+  border-radius: 6px; border: 1px solid var(--borda);
+  background: var(--superficie); color: var(--texto); cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+.primario { background: var(--acento); border-color: var(--acento); color: #fff; font-weight: 600; }
+.primario:not(:disabled):hover { background: var(--acento-forte); }
+.perigo { background: var(--erro); border-color: var(--erro); color: #fff; font-weight: 600; }
+.secundario { font-size: 0.82rem; padding: 0.3rem 0.6rem; }
+.estado { font-size: 0.83rem; color: var(--suave); }
+.estado.rodando { color: var(--acento); }
+
+#entrada {
+  font: var(--fonte-codigo)/var(--linha) var(--mono); padding: 0.6rem;
+  border: 1px solid var(--borda); border-radius: 7px; background: var(--realce-fundo);
+  color: var(--texto); resize: vertical; min-height: 4.5rem; margin-bottom: 1rem; width: 100%;
+}
+.saida {
+  margin: 0; padding: 0.7rem 0.8rem; background: var(--realce-fundo);
+  border: 1px solid var(--borda); border-radius: 7px; flex: 1; min-height: 9rem;
+  font: var(--fonte-codigo)/var(--linha) var(--mono);
+  white-space: pre-wrap; overflow: auto; word-break: break-word;
+}
+.saida.erro { color: var(--erro); }
+.saida:empty::before { content: "A saída do programa aparece aqui."; color: var(--suave); opacity: 0.7; }
+footer {
+  max-width: 78rem; margin: 0 auto; padding: 0 1.5rem 2rem;
+  color: var(--suave); font-size: 0.83rem;
+}
+footer a { color: inherit; }
