@@ -209,6 +209,7 @@ function criarWorker() {
       if (dados.erro) rolarAteOErro();
       elEstado.textContent = dados.ms >= 200 ? 'concluído em ' + dados.ms + ' ms' : 'concluído';
       if (dados.modo === 'passo') abrirDepurador(dados);
+      else trazerSaidaParaAVista();
       return;
     }
     if (dados.tipo === 'abortou') {
@@ -261,6 +262,15 @@ function parar() {
 }
 
 function limparSaida() { elSaida.textContent = ''; elSaida.className = 'saida'; }
+
+/* Em telas estreitas a saida pode nascer abaixo da dobra: quem executa nao ve
+   nada acontecer e acha que o botao nao funcionou. Em tela larga ela ja esta
+   visivel, entao isto nao faz nada. */
+function trazerSaidaParaAVista() {
+  const caixa = elSaida.getBoundingClientRect();
+  const visivel = caixa.top < window.innerHeight && caixa.bottom > 0;
+  if (!visivel) elSaida.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
 
 function mostrarSaida(texto, ehErro) {
   elSaida.textContent = texto;

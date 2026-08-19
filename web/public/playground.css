@@ -231,3 +231,29 @@ button.grande { padding: 0.42rem 0.9rem; font-size: 0.88rem; }
 }
 #painel-editor { position: relative; }
 .editor { position: relative; }
+
+/* ---------- telas estreitas ---------- */
+/* O caso de uso e abrir um link que alguem mandou: ler e executar. Digitar
+   `variavel` numa tela de telefone nao e o alvo, entao aqui so garantimos que a
+   saida caiba junto com o editor em vez de ficar abaixo da dobra. */
+@media (max-width: 900px) {
+  header { padding-top: 1rem; }
+  h1 { font-size: 1.25rem; }
+  .sub { font-size: 0.86rem; }
+  main { padding: 0.7rem 0.9rem 1.5rem; gap: 0.8rem; }
+  .editor { min-height: 11rem; }
+  #entrada { min-height: 3rem; margin-bottom: 0.7rem; }
+  .saida { min-height: 6rem; }
+  .boas-vindas { margin: 0.5rem 0.9rem 0; padding: 0.9rem 1rem 1rem; }
+  /* Tela estreita e quase sempre toque. Aplicar aqui, e nao so em
+     (pointer: coarse), garante o alvo de 44px tambem onde o navegador nao
+     reporta o tipo de ponteiro. */
+  button, select { min-height: 44px; }
+  .controles button { min-width: 44px; }
+}
+/* Alvos de toque com pelo menos 44px, a recomendacao usual. */
+@media (pointer: coarse) {
+  button, select { min-height: 44px; }
+  .controles button { min-width: 44px; }
+  .secundario { padding-inline: 0.8rem; }
+}

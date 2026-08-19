@@ -160,7 +160,7 @@ O Portugol resolve com um painel inicial antes do editor (Novo / Abrir / Exemplo
   executar linha a linha"*;
 - atalhos de teclado visíveis em algum canto, em vez de secretos.
 
-### P4 — Espaço: hoje o depurador e a saída competem
+### P4 — Espaço: hoje o depurador e a saída competem — ✅ FEITO
 
 Ao abrir o passo a passo, o depurador nasce embaixo do editor e a saída fica na
 coluna lateral, longe da linha do tempo. O olho salta.
@@ -207,7 +207,7 @@ feita".
 **Deixo por último de propósito.** É superfície nova, exige expor lexer e parser
 ao JavaScript, e serve mais ao curso (Fase 2) do que ao playground de hoje.
 
-### P7 — Celular: reconhecer, não projetar
+### P7 — Celular: reconhecer, não projetar — ✅ FEITO
 
 O layout já colapsa para uma coluna. Um aluno digitando `variavel` numa tela de
 telefone não é o caso de uso, e fingir que é custa complexidade de layout.
@@ -241,8 +241,16 @@ O raciocínio original da escolha:
 3. **P3** porque hoje o visitante não descobre sozinho o recurso que justifica o
    site.
 
-P4 vem naturalmente junto com P1 (o painel unificado já reorganiza o espaço).
-P5 é uma decisão registrada, sem trabalho. P6 e P7 ficam para depois.
+**P4 e P7 tambem foram feitos depois**, com o mesmo rito de validacao. P4
+reuniu no passo a passo tudo o que o aluno precisa — linha do tempo, descricao,
+quadros e "Saida ate aqui", que cresce e encolhe conforme se avanca e volta — e
+congelou o editor enquanto isso, porque a fita ja foi gravada e editar por baixo
+dela deixaria a linha destacada apontando para um codigo inexistente. P7
+descobriu o unico problema real de celular: a saida nascia **abaixo da dobra**
+(y=848 numa tela de 844), entao quem executava nao via nada acontecer.
+
+P5 e uma decisao registrada, sem trabalho. **Resta so o P6** (tokens e arvore
+sintatica), que e territorio da Fase 2.
 
 ---
 
