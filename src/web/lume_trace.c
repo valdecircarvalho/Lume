@@ -20,6 +20,7 @@
 #include "parser.h"
 #include "trace.h"
 #include "value.h"
+#include "web/lume_json.h"
 #include "web/lume_trace.h"
 
 /* Tetos generosos para material didatico, mas que impedem um laco de um milhao
@@ -29,60 +30,6 @@
 /* O interpretador limita a recursao em LUME_MAX_CALL_DEPTH (200); a folga aqui
    e para nao depender desse numero por acidente. */
 #define MAX_QUADROS   256U
-
-typedef struct { char *dados; size_t tamanho; size_t capacidade; bool ok; } Buffer;
-
-static bool buffer_reservar(Buffer *b, size_t extra) {
-    size_t nova; char *maior;
-    if (!b->ok) return false;
-    if (b->tamanho + extra + 1U <= b->capacidade) return true;
-    nova = b->capacidade < 4096U ? 4096U : b->capacidade;
-    while (nova < b->tamanho + extra + 1U) {
-        if (nova > (size_t)-1 / 2U) { b->ok = false; return false; }
-        nova *= 2U;
-    }
-    maior = memory_reallocate_array(b->dados, nova, 1U);
-    if (maior == NULL) { b->ok = false; return false; }
-    b->dados = maior; b->capacidade = nova;
-    return true;
-}
-static void buffer_bytes(Buffer *b, const char *bytes, size_t comprimento) {
-    if (!buffer_reservar(b, comprimento)) return;
-    memcpy(b->dados + b->tamanho, bytes, comprimento);
-    b->tamanho += comprimento; b->dados[b->tamanho] = '\0';
-}
-static void buffer_texto(Buffer *b, const char *texto) { buffer_bytes(b, texto, strlen(texto)); }
-static void buffer_numero(Buffer *b, size_t valor) {
-    char temporario[32];
-    int escrito = snprintf(temporario, sizeof(temporario), "%zu", valor);
-    if (escrito > 0) buffer_bytes(b, temporario, (size_t)escrito);
-}
-
-/* Escapa conforme JSON. Bytes de controle viram \u00XX; o resto de UTF-8 passa
-   direto, porque JSON aceita UTF-8 cru. */
-static void buffer_json_texto(Buffer *b, const char *bytes, size_t comprimento) {
-    size_t indice;
-    buffer_texto(b, "\"");
-    for (indice = 0U; indice < comprimento; indice++) {
-        unsigned char c = (unsigned char)bytes[indice];
-        switch (c) {
-            case '"':  buffer_texto(b, "\\\""); break;
-            case '\\': buffer_texto(b, "\\\\"); break;
-            case '\n': buffer_texto(b, "\\n"); break;
-            case '\r': buffer_texto(b, "\\r"); break;
-            case '\t': buffer_texto(b, "\\t"); break;
-            default:
-                if (c < 0x20U) {
-                    char escapado[7];
-                    int escrito = snprintf(escapado, sizeof(escapado), "\\u%04x", c);
-                    if (escrito > 0) buffer_bytes(b, escapado, (size_t)escrito);
-                } else {
-                    buffer_bytes(b, (const char *)&c, 1U);
-                }
-        }
-    }
-    buffer_texto(b, "\"");
-}
 
 static const char *nome_do_tipo(TraceEventType tipo) {
     switch (tipo) {
@@ -115,7 +62,7 @@ static const char *nome_do_tipo(TraceEventType tipo) {
     return "desconhecido";
 }
 
-typedef struct { Buffer *saida; size_t escritas; bool primeira; } ColetorVariaveis;
+typedef struct { JsonBuffer *saida; size_t escritas; bool primeira; } ColetorVariaveis;
 
 static void visitar_binding(void *contexto, const char *nome, size_t comprimento,
                             const Value *valor, bool mutavel) {
@@ -124,21 +71,21 @@ static void visitar_binding(void *contexto, const char *nome, size_t comprimento
     /* Funcoes e modulos poluiriam o inspetor: o aluno quer ver dados. */
     if (valor == NULL || valor->type == VALUE_CALLABLE || valor->type == VALUE_MODULE) return;
     if (coletor->escritas >= MAX_VARIAVEIS) return;
-    if (!coletor->primeira) buffer_texto(coletor->saida, ",");
+    if (!coletor->primeira) json_texto(coletor->saida, ",");
     coletor->primeira = false;
     coletor->escritas++;
-    buffer_texto(coletor->saida, "{\"n\":");
-    buffer_json_texto(coletor->saida, nome, comprimento);
-    buffer_texto(coletor->saida, ",\"v\":");
+    json_texto(coletor->saida, "{\"n\":");
+    json_string(coletor->saida, nome, comprimento);
+    json_texto(coletor->saida, ",\"v\":");
     if (value_format(valor, &formatado, &tamanho) && formatado != NULL) {
-        buffer_json_texto(coletor->saida, formatado, tamanho);
+        json_string(coletor->saida, formatado, tamanho);
     } else {
-        buffer_texto(coletor->saida, "\"?\"");
+        json_texto(coletor->saida, "\"?\"");
     }
     memory_free(formatado);
-    buffer_texto(coletor->saida, ",\"m\":");
-    buffer_texto(coletor->saida, mutavel ? "true" : "false");
-    buffer_texto(coletor->saida, "}");
+    json_texto(coletor->saida, ",\"m\":");
+    json_texto(coletor->saida, mutavel ? "true" : "false");
+    json_texto(coletor->saida, "}");
 }
 
 /* Percorre um encadeamento de ambientes acumulando as variaveis. 'ate_global'
@@ -163,11 +110,11 @@ static const Environment *achar_global(const Environment *ambiente) {
     return atual;
 }
 
-static void abrir_quadro(Buffer *b, const char *nome, size_t comprimento, bool primeiro) {
-    if (!primeiro) buffer_texto(b, ",");
-    buffer_texto(b, "{\"q\":");
-    buffer_json_texto(b, nome, comprimento);
-    buffer_texto(b, ",\"vars\":[");
+static void abrir_quadro(JsonBuffer *b, const char *nome, size_t comprimento, bool primeiro) {
+    if (!primeiro) json_texto(b, ",");
+    json_texto(b, "{\"q\":");
+    json_string(b, nome, comprimento);
+    json_texto(b, ",\"vars\":[");
 }
 
 /* Pilha propria de ambientes de chamada.
@@ -186,31 +133,31 @@ typedef struct {
 } Quadro;
 
 typedef struct {
-    Buffer buffer; size_t contagem; bool truncado; bool primeiro;
+    JsonBuffer buffer; size_t contagem; bool truncado; bool primeiro;
     Quadro pilha[MAX_QUADROS]; size_t topo;
 } Coletor;
 
 /* Emite os quadros vivos, do mais externo para o mais interno — a mesma ordem
    em que o Python Tutor os empilha. */
-static void escrever_quadros(Buffer *b, const Coletor *coletor, const TraceEvent *evento) {
+static void escrever_quadros(JsonBuffer *b, const Coletor *coletor, const TraceEvent *evento) {
     ColetorVariaveis vars;
     const Environment *global;
     size_t indice;
-    buffer_texto(b, "[");
+    json_texto(b, "[");
     if (coletor->topo == 0U) {
         /* Fora de qualquer funcao: bloco e topo do programa sao o mesmo quadro. */
         abrir_quadro(b, "principal", 9U, true);
         vars.saida = b; vars.escritas = 0U; vars.primeira = true;
         escrever_bindings(evento->environment, true, &vars);
-        buffer_texto(b, "]}");
-        buffer_texto(b, "]");
+        json_texto(b, "]}");
+        json_texto(b, "]");
         return;
     }
     global = achar_global(evento->environment);
     abrir_quadro(b, "principal", 9U, true);
     vars.saida = b; vars.escritas = 0U; vars.primeira = true;
     if (global != NULL) escrever_bindings(global, true, &vars);
-    buffer_texto(b, "]}");
+    json_texto(b, "]}");
     for (indice = 0U; indice < coletor->topo; indice++) {
         const Quadro *quadro = &coletor->pilha[indice];
         /* O quadro mais interno usa o ambiente do evento, que ja inclui os
@@ -220,26 +167,26 @@ static void escrever_quadros(Buffer *b, const Coletor *coletor, const TraceEvent
         abrir_quadro(b, quadro->nome, quadro->nome_comprimento, false);
         vars.saida = b; vars.escritas = 0U; vars.primeira = true;
         escrever_bindings(ambiente, false, &vars);
-        buffer_texto(b, "]}");
+        json_texto(b, "]}");
     }
-    buffer_texto(b, "]");
+    json_texto(b, "]");
 }
 
-static void escrever_valor(Buffer *b, const char *chave, const Value *valor) {
+static void escrever_valor(JsonBuffer *b, const char *chave, const Value *valor) {
     char *formatado = NULL; size_t tamanho = 0U;
     if (valor == NULL) return;
-    buffer_texto(b, ",\""); buffer_texto(b, chave); buffer_texto(b, "\":");
+    json_texto(b, ",\""); json_texto(b, chave); json_texto(b, "\":");
     if (value_format(valor, &formatado, &tamanho) && formatado != NULL) {
-        buffer_json_texto(b, formatado, tamanho);
+        json_string(b, formatado, tamanho);
     } else {
-        buffer_texto(b, "null");
+        json_texto(b, "null");
     }
     memory_free(formatado);
 }
 
 static void ao_receber_evento(void *contexto, const TraceEvent *evento) {
     Coletor *coletor = (Coletor *)contexto;
-    Buffer *b = &coletor->buffer;
+    JsonBuffer *b = &coletor->buffer;
     if (evento == NULL) return;
     coletor->contagem++;
     if (coletor->contagem > MAX_EVENTOS) { coletor->truncado = true; return; }
@@ -251,42 +198,42 @@ static void ao_receber_evento(void *contexto, const TraceEvent *evento) {
         quadro->nome_comprimento = evento->name != NULL ? evento->name_length : 6U;
     }
 
-    if (!coletor->primeiro) buffer_texto(b, ",");
+    if (!coletor->primeiro) json_texto(b, ",");
     coletor->primeiro = false;
 
-    buffer_texto(b, "{\"t\":\""); buffer_texto(b, nome_do_tipo(evento->type));
-    buffer_texto(b, "\",\"l\":");  buffer_numero(b, evento->span.start.line);
-    buffer_texto(b, ",\"c\":");    buffer_numero(b, evento->span.start.column);
-    buffer_texto(b, ",\"l2\":");   buffer_numero(b, evento->span.end.line);
-    buffer_texto(b, ",\"c2\":");   buffer_numero(b, evento->span.end.column);
-    buffer_texto(b, ",\"p\":");    buffer_numero(b, evento->call_depth);
+    json_texto(b, "{\"t\":\""); json_texto(b, nome_do_tipo(evento->type));
+    json_texto(b, "\",\"l\":");  json_numero(b, evento->span.start.line);
+    json_texto(b, ",\"c\":");    json_numero(b, evento->span.start.column);
+    json_texto(b, ",\"l2\":");   json_numero(b, evento->span.end.line);
+    json_texto(b, ",\"c2\":");   json_numero(b, evento->span.end.column);
+    json_texto(b, ",\"p\":");    json_numero(b, evento->call_depth);
 
     if (evento->name != NULL) {
-        buffer_texto(b, ",\"n\":");
-        buffer_json_texto(b, evento->name, evento->name_length);
+        json_texto(b, ",\"n\":");
+        json_string(b, evento->name, evento->name_length);
     }
     escrever_valor(b, "a", evento->before);
     escrever_valor(b, "d", evento->after);
 
     switch (evento->type) {
         case TRACE_IF_CONDITION: case TRACE_WHILE_CONDITION:
-            buffer_texto(b, ",\"b\":");
-            buffer_texto(b, evento->decision ? "true" : "false");
+            json_texto(b, ",\"b\":");
+            json_texto(b, evento->decision ? "true" : "false");
             break;
         case TRACE_WHILE_ITERATION: case TRACE_FOR_ITERATION:
-            buffer_texto(b, ",\"i\":"); buffer_numero(b, evento->iteration);
+            json_texto(b, ",\"i\":"); json_numero(b, evento->iteration);
             break;
         case TRACE_INDEX_READ: case TRACE_INDEX_WRITE:
-            if (evento->index >= 0) { buffer_texto(b, ",\"x\":"); buffer_numero(b, (size_t)evento->index); }
+            if (evento->index >= 0) { json_texto(b, ",\"x\":"); json_numero(b, (size_t)evento->index); }
             break;
         default: break;
     }
 
     if (evento->environment != NULL) {
-        buffer_texto(b, ",\"v\":");
+        json_texto(b, ",\"v\":");
         escrever_quadros(b, coletor, evento);
     }
-    buffer_texto(b, "}");
+    json_texto(b, "}");
 
     /* Desempilha depois de emitir: no evento de retorno o quadro ainda existe,
        e e justamente o valor que ele devolveu que interessa ver. */
@@ -301,11 +248,10 @@ bool lume_trace_executar(const char *nome, const char *codigo, size_t compriment
 
     token_array_init(&tokens);
     environment_init(&ambiente, NULL);
-    coletor.buffer.dados = NULL; coletor.buffer.tamanho = 0U;
-    coletor.buffer.capacidade = 0U; coletor.buffer.ok = true;
+    json_buffer_init(&coletor.buffer);
     coletor.contagem = 0U; coletor.truncado = false; coletor.primeiro = true;
     coletor.topo = 0U;
-    buffer_texto(&coletor.buffer, "[");
+    json_texto(&coletor.buffer, "[");
 
     trace.callback = ao_receber_evento; trace.context = &coletor; trace.stop_requested = false;
 
@@ -314,7 +260,7 @@ bool lume_trace_executar(const char *nome, const char *codigo, size_t compriment
     if (ok) ok = parser_parse_program(&tokens, &programa, erros);
     if (ok) ok = interpreter_execute_program_with_trace(programa, &ambiente, io, &trace, erros);
 
-    buffer_texto(&coletor.buffer, "]");
+    json_texto(&coletor.buffer, "]");
 
     /* Mesma ordem de education.c: o diagnostico e exibido pelo chamador, entao
        a AST e liberada aqui, depois que ninguem mais aponta para ela. */
@@ -323,7 +269,7 @@ bool lume_trace_executar(const char *nome, const char *codigo, size_t compriment
     token_array_free(&tokens);
 
     *eventos_json = coletor.buffer.ok ? coletor.buffer.dados : NULL;
-    if (!coletor.buffer.ok) memory_free(coletor.buffer.dados);
+    if (!coletor.buffer.ok) json_buffer_free(&coletor.buffer);
     *total = coletor.contagem;
     *truncado = coletor.truncado;
     return ok;

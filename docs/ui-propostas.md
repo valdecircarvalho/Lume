@@ -197,15 +197,26 @@ Fica registrado que emitir um evento para `retorne` no interpretador resolveria
 os dois problemas de uma vez. Seria mudança no upstream, e portanto candidata a
 PR próprio, não a este trabalho.
 
-### P6 — "Veja por dentro": tokens e árvore sintática
+### P6 — "Veja por dentro": tokens e árvore sintática — ✅ FEITO
 
 O maior diferencial possível, e o maior trabalho. Precedente: o Compiler
 Explorer. A ideia é um painel mostrando como o texto vira tokens e como os
 tokens viram árvore — a aula de "como a linguagem que você está aprendendo é
 feita".
 
-**Deixo por último de propósito.** É superfície nova, exige expor lexer e parser
-ao JavaScript, e serve mais ao curso (Fase 2) do que ao playground de hoje.
+**Feito por último, como planejado.** `src/web/lume_estrutura.c` expõe as duas
+primeiras etapas do interpretador. Os rótulos saem em português — "declaração de
+variável", "operação", "valor fixo" — porque o aluno está aprendendo numa
+linguagem em português; ver `STMT_VARIABLE_DECLARATION` só traduziria um
+problema em outro. O nome técnico fica ao lado, para quem quiser cruzar com o
+código-fonte.
+
+A árvore mostra a **precedência** na própria forma: em `1 + 2 * 3`, a
+multiplicação aparece como filha da soma. Isso é testado — e é o que separa uma
+árvore que ensina de uma que decora.
+
+Aproveitando, o buffer de JSON virou `src/web/lume_json.c`, compartilhado pelo
+trace e pela estrutura em vez de duplicado.
 
 ### P7 — Celular: reconhecer, não projetar — ✅ FEITO
 
@@ -249,8 +260,8 @@ dela deixaria a linha destacada apontando para um codigo inexistente. P7
 descobriu o unico problema real de celular: a saida nascia **abaixo da dobra**
 (y=848 numa tela de 844), entao quem executava nao via nada acontecer.
 
-P5 e uma decisao registrada, sem trabalho. **Resta so o P6** (tokens e arvore
-sintatica), que e territorio da Fase 2.
+**P6 tambem foi feito.** P5 e uma decisao registrada, sem trabalho. Todas as
+propostas deste documento estao entregues.
 
 ---
 

@@ -13,6 +13,7 @@
 
 char *lume_web_eval(const char *codigo, const char *entrada);
 char *lume_web_trace(const char *codigo, const char *entrada);
+char *lume_web_estrutura(const char *codigo);
 void lume_web_free(char *ponteiro);
 
 static int falhas = 0;
@@ -161,6 +162,53 @@ int main(void) {
         CHECK(fita != NULL);
         if (fita != NULL) { CHECK(strstr(fita, "entra-funcao") != NULL); CHECK(strstr(fita, "\"p\":4") != NULL); }
         lume_web_free(fita);
+    }
+    { /* "Veja por dentro": tokens e arvore. Nao executa nada, mas aloca bastante,
+         entao vale rodar varias vezes no mesmo processo como o resto. */
+        for (volta = 0; volta < 15; volta++) {
+            char *e = lume_web_estrutura("variavel s = 0\npara i de 1 ate 3 {\n s = s + i * 2\n}\n");
+            CHECK(e != NULL);
+            if (e != NULL) {
+                CHECK(strstr(e, "\"familia\":\"palavra-chave\"") != NULL);
+                CHECK(strstr(e, "\"no\":\"declaracao de variavel\"") != NULL);
+                CHECK(strstr(e, "\"no\":\"para\"") != NULL);
+                CHECK(strstr(e, "\"tecnico\":\"STMT_FOR\"") != NULL);
+                CHECK(strstr(e, "\"erro\":null") != NULL);
+            }
+            lume_web_free(e);
+        }
+    }
+    { /* A precedencia tem de aparecer na forma da arvore: em s + i * 2, o filho
+         direito do + precisa ser a multiplicacao, nao o contrario. E o que torna
+         a arvore uma aula em vez de um enfeite. */
+        char *e = lume_web_estrutura("variavel r = 1 + 2 * 3\n");
+        CHECK(e != NULL);
+        if (e != NULL) {
+            char *mais = strstr(e, "\"detalhe\":\"+\"");
+            CHECK(mais != NULL);
+            if (mais != NULL) {
+                char *vezes = strstr(mais, "\"detalhe\":\"*\"");
+                CHECK(vezes != NULL);   /* a multiplicacao esta DENTRO da soma */
+            }
+        }
+        lume_web_free(e);
+    }
+    { /* Codigo com erro de sintaxe: os tokens saem mesmo assim (o lexer foi ate o
+         fim), a arvore vem nula e o erro descrito. */
+        char *e = lume_web_estrutura("variavel = 1\n");
+        CHECK(e != NULL);
+        if (e != NULL) {
+            CHECK(strstr(e, "\"arvore\":null") != NULL);
+            CHECK(strstr(e, "\"erro\":{") != NULL);
+            CHECK(strstr(e, "\"tokens\":[{") != NULL);
+        }
+        lume_web_free(e);
+    }
+    { /* Programa vazio nao pode quebrar. */
+        char *e = lume_web_estrutura("");
+        CHECK(e != NULL);
+        if (e != NULL) CHECK(strstr(e, "\"no\":\"programa\"") != NULL);
+        lume_web_free(e);
     }
     if (falhas == 0) { puts("Sequencia de execucoes no mesmo processo: tudo passou."); return 0; }
     fprintf(stderr, "%d verificacao(oes) falharam.\n", falhas); return 1;

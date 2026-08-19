@@ -257,3 +257,36 @@ button.grande { padding: 0.42rem 0.9rem; font-size: 0.88rem; }
   .controles button { min-width: 44px; }
   .secundario { padding-inline: 0.8rem; }
 }
+
+/* ---------- ver por dentro ---------- */
+.dentro { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--borda); }
+.abas { display: flex; gap: 0.35rem; align-items: center; }
+.aba {
+  font-size: 0.84rem; padding: 0.32rem 0.75rem; border-radius: 6px 6px 0 0;
+  border: 1px solid var(--borda); border-bottom-color: transparent; background: var(--fundo);
+}
+.aba.ativa { background: var(--realce-fundo); border-color: var(--acento); color: var(--texto); font-weight: 600; }
+#fechar-dentro { margin-left: auto; }
+.explica { margin: 0.5rem 0 0.6rem; font-size: 0.85rem; color: var(--suave); }
+.tokens { display: flex; flex-wrap: wrap; gap: 0.28rem; max-height: 13rem; align-content: start; }
+.ficha {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 0.05rem;
+  padding: 0.18rem 0.4rem; border-radius: 5px; border: 1px solid var(--borda);
+  background: var(--superficie); font: var(--fonte-codigo)/1.25 var(--mono);
+}
+.ficha .lexema { color: var(--texto); }
+.ficha .classe { font: 0.62rem/1 system-ui, sans-serif; color: var(--suave); letter-spacing: 0.02em; }
+.ficha.f-palavra-chave { border-color: var(--kw); } .ficha.f-palavra-chave .lexema { color: var(--kw); font-weight: 600; }
+.ficha.f-texto { border-color: var(--str); } .ficha.f-texto .lexema { color: var(--str); }
+.ficha.f-numero { border-color: var(--num); } .ficha.f-numero .lexema { color: var(--num); }
+.ficha.f-nome { border-color: var(--nat); } .ficha.f-nome .lexema { color: var(--nat); }
+.ficha.f-quebra, .ficha.f-fim { opacity: 0.5; }
+.arvore { font: var(--fonte-codigo)/1.75 var(--mono); max-height: 15rem; }
+.arvore .no { cursor: pointer; border-radius: 3px; padding-left: 0.15rem; white-space: nowrap; }
+.arvore .no:hover { background: color-mix(in srgb, var(--acento) 16%, transparent); }
+.arvore .rotulo { color: var(--texto); }
+.arvore .detalhe { color: var(--num); }
+.arvore .tecnico { color: var(--suave); font-size: 0.86em; opacity: 0.75; }
+/* Sem 'pre' o HTML colapsa os espacos das guias e todos os niveis ficam com o
+   mesmo recuo — que e justamente o que a arvore precisa mostrar. */
+.arvore .guia { color: var(--suave); opacity: 0.45; white-space: pre; }

@@ -14,6 +14,7 @@
 #include "diagnostic.h"
 #include "memory.h"
 #include "session.h"
+#include "web/lume_estrutura.h"
 #include "web/lume_trace.h"
 
 
@@ -149,6 +150,11 @@ char *lume_web_trace(const char *codigo, const char *entrada) {
     error_list_free(&erros); source_free(&fonte);
     return resposta;
 }
+
+/* Mostra as duas primeiras etapas do interpretador: como o texto vira tokens e
+   como os tokens viram arvore. Nao executa nada. */
+EMSCRIPTEN_KEEPALIVE
+char *lume_web_estrutura(const char *codigo) { return lume_estrutura_json(codigo); }
 
 /* Roda a CLI inteira (projetos, modulos, --analisar, --explicar) sobre arquivos
    que o JavaScript escreveu no sistema de arquivos virtual. */

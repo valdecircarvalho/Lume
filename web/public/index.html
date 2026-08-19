@@ -47,11 +47,23 @@
     <div class="rodape-editor">
       <button id="rodar" type="button" class="primario" disabled>Executar</button>
       <button id="depurar" type="button" class="secundario grande" disabled>Passo a passo</button>
+      <button id="ver-dentro" type="button" class="secundario grande" disabled>Ver por dentro</button>
       <button id="parar" type="button" class="perigo" hidden>Parar</button>
       <span id="estado" class="estado"></span>
       <span class="atalhos" aria-hidden="true">
         <kbd>Ctrl</kbd>+<kbd>Enter</kbd> executa · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> passo a passo
       </span>
+    </div>
+
+    <div class="dentro" id="dentro" hidden>
+      <div class="abas">
+        <button id="aba-tokens" class="aba ativa" type="button">Tokens</button>
+        <button id="aba-arvore" class="aba" type="button">Árvore</button>
+        <button id="fechar-dentro" class="secundario" type="button">Sair</button>
+      </div>
+      <p class="explica" id="explica-dentro"></p>
+      <div id="painel-tokens" class="grade tokens"></div>
+      <div id="painel-arvore" class="grade arvore" hidden></div>
     </div>
 
     <div class="depurador" id="depurador" hidden>

@@ -25,8 +25,12 @@ onmessage = (evento) => {
   const inicio = performance.now();
   let ponteiro = 0;
   try {
-    const funcao = modo === 'passo' ? 'lume_web_trace' : 'lume_web_eval';
-    ponteiro = modulo.ccall(funcao, 'number', ['string', 'string'], [codigo, entrada]);
+    const funcao = modo === 'passo' ? 'lume_web_trace'
+                 : modo === 'estrutura' ? 'lume_web_estrutura' : 'lume_web_eval';
+    /* lume_web_estrutura nao executa nada, entao nao recebe entrada. */
+    ponteiro = modo === 'estrutura'
+      ? modulo.ccall(funcao, 'number', ['string'], [codigo])
+      : modulo.ccall(funcao, 'number', ['string', 'string'], [codigo, entrada]);
     const bruto = ponteiro ? modulo.UTF8ToString(ponteiro) : '';
     /* A string ja foi copiada para JS aqui, entao liberar antes de responder e
        seguro — e garante que nada fica pendurado se o postMessage falhar. */
@@ -35,9 +39,10 @@ onmessage = (evento) => {
     /* Os dois modos respondem o mesmo formato: { saida, erro, ... }. O erro vem
        com a localizacao exata, para o editor sublinhar o trecho. */
     const r = JSON.parse(bruto);
-    postMessage({ tipo: 'resultado', modo: modo === 'passo' ? 'passo' : 'normal',
+    postMessage({ tipo: 'resultado', modo: modo || 'normal', ms: ms,
                   saida: r.saida, erro: r.erro, eventos: r.eventos,
-                  total: r.total, truncado: r.truncado, ms: ms });
+                  total: r.total, truncado: r.truncado,
+                  tokens: r.tokens, arvore: r.arvore });
   } catch (erro) {
     /* Chegar aqui significa que o wasm abortou (estouro de pilha, por exemplo).
        O modulo nao e mais confiavel: nao se chama free sobre a heap dele, porque

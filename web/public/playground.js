@@ -38,6 +38,7 @@ const btRodar = $('rodar'), btParar = $('parar'), elEstado = $('estado');
 const btDepurar = $('depurar'), elDepurador = $('depurador'), elTempo = $('linha-do-tempo');
 const elDescricao = $('descricao-passo'), elQuadros = $('quadros');
 const elSaidaParcial = $('saida-parcial'), elEditor = $('editor'), elTituloSaida = $('titulo-saida');
+const btDentro = $('ver-dentro'), elDentro = $('dentro');
 const elLinhaAtual = $('linha-atual'), elMarcaErro = $('marca-erro'), elBalaoErro = $('balao-erro');
 
 /* ---------- realce de sintaxe ---------- */
@@ -193,7 +194,7 @@ function criarWorker() {
     if (dados.tipo === 'pronto') {
       pronto = true; executando = false;
       btRodar.disabled = false; btRodar.textContent = 'Executar';
-      btDepurar.disabled = false;
+      btDepurar.disabled = false; btDentro.disabled = false;
       btParar.hidden = true; elEstado.textContent = ''; elEstado.className = 'estado';
       return;
     }
@@ -204,11 +205,15 @@ function criarWorker() {
     }
     if (dados.tipo === 'resultado') {
       terminarExecucao();
-      mostrarSaida(dados.saida, dados.erro !== null && dados.erro !== undefined);
-      marcarErro(dados.erro);
+      /* O modo "ver por dentro" nao executa: nao ha saida para exibir. */
+      if (dados.modo !== 'estrutura') {
+        mostrarSaida(dados.saida, dados.erro !== null && dados.erro !== undefined);
+      }
+      marcarErro(dados.erro && dados.erro.linhaFim !== undefined ? dados.erro : null);
       if (dados.erro) rolarAteOErro();
       elEstado.textContent = dados.ms >= 200 ? 'concluído em ' + dados.ms + ' ms' : 'concluído';
       if (dados.modo === 'passo') abrirDepurador(dados);
+      else if (dados.modo === 'estrutura') abrirDentro(dados);
       else trazerSaidaParaAVista();
       return;
     }
@@ -224,7 +229,7 @@ function criarWorker() {
 function reiniciarWorker(mensagem) {
   if (worker) worker.terminate();
   executando = false;
-  btRodar.disabled = true; btDepurar.disabled = true;
+  btRodar.disabled = true; btDepurar.disabled = true; btDentro.disabled = true;
   btRodar.textContent = 'Reiniciando…';
   btParar.hidden = true;
   elEstado.textContent = mensagem || ''; elEstado.className = 'estado';
@@ -234,17 +239,18 @@ function reiniciarWorker(mensagem) {
 function terminarExecucao() {
   executando = false;
   btRodar.disabled = false; btRodar.textContent = 'Executar';
-  btDepurar.disabled = false; btParar.hidden = true;
+  btDepurar.disabled = false; btDentro.disabled = false; btParar.hidden = true;
   elEstado.className = 'estado';
 }
 
 function executar(modo) {
   if (!pronto || executando) return;
-  modoAtual = modo === 'passo' ? 'passo' : 'normal';
+  modoAtual = (modo === 'passo' || modo === 'estrutura') ? modo : 'normal';
   executando = true;
-  fecharDepurador();
-  btRodar.disabled = true; btDepurar.disabled = true;
-  btRodar.textContent = modoAtual === 'passo' ? 'Gravando…' : 'Executando…';
+  fecharDepurador(); fecharDentro();
+  btRodar.disabled = true; btDepurar.disabled = true; btDentro.disabled = true;
+  btRodar.textContent = modoAtual === 'passo' ? 'Gravando…'
+                      : modoAtual === 'estrutura' ? 'Analisando…' : 'Executando…';
   btParar.hidden = false;
   elEstado.textContent = 'em execução'; elEstado.className = 'estado rodando';
   /* Sem isto, a saida da execucao anterior fica na tela durante a nova — e um
@@ -449,6 +455,81 @@ document.addEventListener('keydown', (evento) => {
   if (evento.key === 'ArrowRight') { evento.preventDefault(); irPara(passo + 1); }
 });
 
+/* ---------- ver por dentro ---------- */
+
+/* Mostra as duas primeiras etapas do interpretador. Um site que ensina
+   programacao tem uma vantagem que um livro nao tem: pode abrir a propria
+   linguagem e mostrar como ela le o que voce escreveu. */
+
+function abrirDentro(dados) {
+  elDentro.hidden = false;
+  elCodigo.readOnly = true;
+  elEditor.classList.add('congelado');
+  mostrarTokens(dados.tokens || []);
+  mostrarArvore(dados.arvore, dados.erro);
+  trocarAba('tokens');
+  elEstado.textContent = (dados.tokens || []).length + ' tokens';
+}
+
+function fecharDentro() {
+  elDentro.hidden = true;
+  if (elDepurador.hidden) { elCodigo.readOnly = false; elEditor.classList.remove('congelado'); }
+}
+
+function trocarAba(qual) {
+  const emTokens = qual === 'tokens';
+  $('aba-tokens').classList.toggle('ativa', emTokens);
+  $('aba-arvore').classList.toggle('ativa', !emTokens);
+  $('painel-tokens').hidden = !emTokens;
+  $('painel-arvore').hidden = emTokens;
+  $('explica-dentro').textContent = emTokens
+    ? 'Primeiro o programa é quebrado em pedaços com nome — é a etapa do lexer. Espaços e comentários somem aqui.'
+    : 'Depois os pedaços viram uma árvore, que é o que diz a ordem das contas. Clique num nó para achar a linha dele.';
+}
+
+function mostrarTokens(tokens) {
+  $('painel-tokens').innerHTML = tokens.map((t) =>
+    '<span class="ficha f-' + escaparHtml(t.familia) + '" title="' +
+      escaparHtml(t.tipo) + ' — linha ' + t.l + ', coluna ' + t.c + '">' +
+      '<span class="lexema">' + (t.texto === '' ? '&nbsp;' : escaparHtml(t.texto)) + '</span>' +
+      '<span class="classe">' + escaparHtml(t.familia) + '</span></span>').join('');
+}
+
+function mostrarArvore(raiz, erro) {
+  const painel = $('painel-arvore');
+  if (raiz === null || raiz === undefined) {
+    painel.innerHTML = '<span class="vazio">A árvore não pôde ser montada' +
+      (erro ? ': ' + escaparHtml(erro.mensagem) + ' (linha ' + erro.linha + ')' : '.') + '</span>';
+    return;
+  }
+  const linhas = [];
+  /* Desenho com guias em vez de recuo puro: com muitos niveis, o recuo sozinho
+     deixa de dizer quem e filho de quem. */
+  const percorrer = (no, prefixo, ultimo, raizQ) => {
+    if (no === null || no === undefined) return;
+    const guia = raizQ ? '' : prefixo + (ultimo ? '└─ ' : '├─ ');
+    linhas.push('<div class="no" data-linha="' + no.l + '">' +
+      '<span class="guia">' + escaparHtml(guia) + '</span>' +
+      '<span class="rotulo">' + escaparHtml(no.no) + '</span>' +
+      (no.detalhe !== undefined ? ' <span class="detalhe">' + escaparHtml(no.detalhe) + '</span>' : '') +
+      (no.parametros && no.parametros.length
+        ? ' <span class="detalhe">(' + no.parametros.map(escaparHtml).join(', ') + ')</span>' : '') +
+      '  <span class="tecnico">' + escaparHtml(no.tecnico) + '</span></div>');
+    const filhos = no.filhos || [];
+    const novoPrefixo = raizQ ? '' : prefixo + (ultimo ? '   ' : '│  ');
+    filhos.forEach((filho, i) => percorrer(filho, novoPrefixo, i === filhos.length - 1, false));
+  };
+  percorrer(raiz, '', true, true);
+  painel.innerHTML = linhas.join('');
+  painel.querySelectorAll('.no').forEach((elemento) => {
+    elemento.onclick = () => destacarLinha(Number(elemento.dataset.linha));
+  });
+}
+
+$('aba-tokens').addEventListener('click', () => trocarAba('tokens'));
+$('aba-arvore').addEventListener('click', () => trocarAba('arvore'));
+$('fechar-dentro').addEventListener('click', fecharDentro);
+
 /* ---------- exemplos, rascunho e link ---------- */
 
 function carregarExemplo(nome) {
@@ -550,11 +631,13 @@ elCodigo.addEventListener('input', () => {
   /* Editar invalida a posicao do erro: o trecho marcado pode nem existir mais. */
   marcarErro(null);
   if (!elDepurador.hidden) fecharDepurador();
+  if (!elDentro.hidden) fecharDentro();
 });
 elCodigo.addEventListener('scroll', sincronizarRolagem);
 elCodigo.addEventListener('keydown', tratarTecla);
 btRodar.addEventListener('click', () => executar('normal'));
 btDepurar.addEventListener('click', () => executar('passo'));
+btDentro.addEventListener('click', () => executar('estrutura'));
 btParar.addEventListener('click', parar);
 $('limpar').addEventListener('click', () => { limparSaida(); marcarErro(null); });
 $('compartilhar').addEventListener('click', compartilhar);
@@ -569,6 +652,7 @@ document.addEventListener('keydown', (evento) => {
 $('fechar-boas-vindas').addEventListener('click', fecharBoasVindas);
 btRodar.addEventListener('click', fecharBoasVindas);
 btDepurar.addEventListener('click', fecharBoasVindas);
+btDentro.addEventListener('click', fecharBoasVindas);
 
 montarExemplos();
 abrirBoasVindasSePrimeiraVez();
