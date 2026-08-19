@@ -12,6 +12,7 @@
 #include <string.h>
 
 char *lume_web_eval(const char *codigo, const char *entrada);
+char *lume_web_trace(const char *codigo, const char *entrada);
 void lume_web_free(char *ponteiro);
 
 static int falhas = 0;
@@ -47,6 +48,31 @@ int main(void) {
     for (volta = 0; volta < 40; volta++) {
         esperar("repeticao", "funcao f(n) {\n retorne n + 1\n}\nescreva(f(41))\n", "", "42");
         esperar("repeticao-erro", "funcao f() {\n retorne inexistente\n}\nescreva(f())\n", "", "Erro de nome");
+    }
+    /* O modo passo a passo grava a fita inteira em memoria; e o caminho que
+       mais aloca, entao vale exercita-lo no mesmo processo tambem. */
+    for (volta = 0; volta < 20; volta++) {
+        char *fita = lume_web_trace("variavel s = 0\npara i de 1 ate 5 {\n s = s + i\n}\nescreva(s)\n", "");
+        CHECK(fita != NULL);
+        if (fita != NULL) {
+            CHECK(strstr(fita, "\"saida\":\"15") != NULL);
+            CHECK(strstr(fita, "declara-variavel") != NULL);
+            CHECK(strstr(fita, "volta-para") != NULL);
+            CHECK(strstr(fita, "\"truncado\":false") != NULL);
+        }
+        lume_web_free(fita);
+    }
+    { /* erro no modo passo: a fita para, mas a resposta continua valida */
+        char *fita = lume_web_trace("escreva(xyz)\n", "");
+        CHECK(fita != NULL);
+        if (fita != NULL) CHECK(strstr(fita, "Nome: ") != NULL);
+        lume_web_free(fita);
+    }
+    { /* recursao: a profundidade tem de aparecer na fita */
+        char *fita = lume_web_trace("funcao f(n) {\n se n <= 1 {\n  retorne 1\n }\n retorne n * f(n-1)\n}\nescreva(f(5))\n", "");
+        CHECK(fita != NULL);
+        if (fita != NULL) { CHECK(strstr(fita, "entra-funcao") != NULL); CHECK(strstr(fita, "\"p\":4") != NULL); }
+        lume_web_free(fita);
     }
     if (falhas == 0) { puts("Sequencia de execucoes no mesmo processo: tudo passou."); return 0; }
     fprintf(stderr, "%d verificacao(oes) falharam.\n", falhas); return 1;

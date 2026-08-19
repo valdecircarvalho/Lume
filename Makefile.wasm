@@ -13,7 +13,7 @@ WEB_CFLAGS   := -std=c11 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Os
 DIST         := web/dist
 
 CORE_SOURCES := $(filter-out src/main.c,$(wildcard src/*.c))
-WEB_SOURCES  := $(CORE_SOURCES) src/web/lume_web.c
+WEB_SOURCES  := $(CORE_SOURCES) src/web/lume_web.c src/web/lume_trace.c
 
 # -sSTACK_SIZE=4MB e obrigatorio, nao ajuste fino: o padrao do Emscripten e
 # 64 KB, e cada chamada de funcao Lume consome varios KB de pilha C. Com o
@@ -25,7 +25,7 @@ WEB_SOURCES  := $(CORE_SOURCES) src/web/lume_web.c
 EMFLAGS := \
   -sMODULARIZE=1 -sEXPORT_NAME=createLume \
   -sSTACK_SIZE=4MB -sINITIAL_MEMORY=64MB \
-  -sEXPORTED_FUNCTIONS=_lume_web_eval,_lume_web_cli,_lume_web_free,_malloc,_free \
+  -sEXPORTED_FUNCTIONS=_lume_web_eval,_lume_web_trace,_lume_web_cli,_lume_web_free,_malloc,_free \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,FS,stringToNewUTF8,UTF8ToString,setValue \
   -sALLOW_MEMORY_GROWTH -sINVOKE_RUN=0 -sEXIT_RUNTIME=0
 
@@ -49,7 +49,7 @@ web-test: $(DIST)/lume.js
 web-test-nativo:
 	$(CC) -Isrc -std=c11 -D_POSIX_C_SOURCE=200809L -g -O1 \
 	  -fsanitize=address,undefined -o /tmp/lume_teste_sequencia \
-	  $(CORE_SOURCES) src/web/lume_web.c web/tools/teste_sequencia.c -lm
+	  $(CORE_SOURCES) src/web/lume_web.c src/web/lume_trace.c web/tools/teste_sequencia.c -lm
 	/tmp/lume_teste_sequencia
 
 web-clean:

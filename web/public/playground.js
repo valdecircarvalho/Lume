@@ -34,6 +34,9 @@ const $ = (id) => document.getElementById(id);
 const elCodigo = $('codigo'), elRealce = $('realce').firstElementChild;
 const elNumeros = $('numeros'), elEntrada = $('entrada'), elSaida = $('saida');
 const btRodar = $('rodar'), btParar = $('parar'), elEstado = $('estado');
+const btDepurar = $('depurar'), elDepurador = $('depurador'), elTempo = $('linha-do-tempo');
+const elDescricao = $('descricao-passo'), elVariaveis = $('variaveis'), elPilha = $('pilha');
+const elLinhaAtual = $('linha-atual');
 
 /* ---------- realce de sintaxe ---------- */
 
@@ -96,7 +99,7 @@ function tratarTecla(evento) {
 
 /* ---------- ciclo de vida do worker ---------- */
 
-let worker = null, pronto = false, executando = false;
+let worker = null, pronto = false, executando = false, modoAtual = 'normal';
 
 function criarWorker() {
   pronto = false;
@@ -106,6 +109,7 @@ function criarWorker() {
     if (dados.tipo === 'pronto') {
       pronto = true; executando = false;
       btRodar.disabled = false; btRodar.textContent = 'Executar';
+      btDepurar.disabled = false;
       btParar.hidden = true; elEstado.textContent = ''; elEstado.className = 'estado';
       return;
     }
@@ -118,6 +122,7 @@ function criarWorker() {
       terminarExecucao();
       mostrarSaida(dados.saida, /Erro (de|lexico|interno)/.test(dados.saida));
       elEstado.textContent = dados.ms >= 200 ? 'concluído em ' + dados.ms + ' ms' : 'concluído';
+      if (dados.modo === 'passo') abrirDepurador(dados);
       return;
     }
     if (dados.tipo === 'abortou') {
@@ -132,7 +137,8 @@ function criarWorker() {
 function reiniciarWorker(mensagem) {
   if (worker) worker.terminate();
   executando = false;
-  btRodar.disabled = true; btRodar.textContent = 'Reiniciando…';
+  btRodar.disabled = true; btDepurar.disabled = true;
+  btRodar.textContent = 'Reiniciando…';
   btParar.hidden = true;
   elEstado.textContent = mensagem || ''; elEstado.className = 'estado';
   criarWorker();
@@ -141,20 +147,23 @@ function reiniciarWorker(mensagem) {
 function terminarExecucao() {
   executando = false;
   btRodar.disabled = false; btRodar.textContent = 'Executar';
-  btParar.hidden = true;
+  btDepurar.disabled = false; btParar.hidden = true;
   elEstado.className = 'estado';
 }
 
-function executar() {
+function executar(modo) {
   if (!pronto || executando) return;
+  modoAtual = modo === 'passo' ? 'passo' : 'normal';
   executando = true;
-  btRodar.disabled = true; btRodar.textContent = 'Executando…';
+  fecharDepurador();
+  btRodar.disabled = true; btDepurar.disabled = true;
+  btRodar.textContent = modoAtual === 'passo' ? 'Gravando…' : 'Executando…';
   btParar.hidden = false;
   elEstado.textContent = 'em execução'; elEstado.className = 'estado rodando';
   /* Sem isto, a saida da execucao anterior fica na tela durante a nova — e um
      programa que trava parece ter respondido o que o anterior respondeu. */
   limparSaida();
-  worker.postMessage({ codigo: elCodigo.value, entrada: elEntrada.value });
+  worker.postMessage({ codigo: elCodigo.value, entrada: elEntrada.value, modo: modoAtual });
 }
 
 /* O motivo de tudo isto rodar num worker: aqui a execucao morre de verdade,
@@ -171,6 +180,144 @@ function mostrarSaida(texto, ehErro) {
   elSaida.textContent = texto;
   elSaida.className = ehErro ? 'saida erro' : 'saida';
 }
+
+/* ---------- depurador visual ---------- */
+
+/* A fita inteira vem de uma execucao so (src/web/lume_trace.c), entao dá para
+   andar para tras — coisa que o `--passo` da CLI nao faz, porque la o programa
+   avanca junto com o aluno. */
+let fita = [], passo = 0;
+
+/* Frases em vez de nomes de evento: quem esta aprendendo nao deveria precisar
+   traduzir "TRACE_WHILE_ITERATION" na cabeca. */
+function descrever(evento) {
+  const nome = evento.n ? '<code>' + escaparHtml(evento.n) + '</code>' : '';
+  const valor = (v) => '<code>' + escaparHtml(v === undefined ? '?' : v) + '</code>';
+  switch (evento.t) {
+    case 'inicio': return 'O programa começou.';
+    case 'fim': return 'O programa terminou.';
+    case 'declara-variavel': return 'Criou a variável ' + nome + ' valendo ' + valor(evento.d) + '.';
+    case 'declara-constante': return 'Criou a constante ' + nome + ' valendo ' + valor(evento.d) + '.';
+    case 'declara-funcao': return 'Registrou a função ' + nome + '.';
+    case 'atribui': return 'Mudou ' + nome + ' de ' + valor(evento.a) + ' para ' + valor(evento.d) + '.';
+    case 'condicao-se': return 'Avaliou a condição do <code>se</code>: deu ' +
+      valor(evento.b ? 'verdadeiro' : 'falso') + ', então ' + (evento.b ? 'entrou no bloco.' : 'pulou o bloco.');
+    case 'condicao-enquanto': return 'Testou a condição do <code>enquanto</code>: deu ' +
+      valor(evento.b ? 'verdadeiro' : 'falso') + (evento.b ? ', vai repetir.' : ', vai parar.');
+    case 'volta-enquanto': return 'Volta ' + valor(evento.i) + ' do <code>enquanto</code>.';
+    case 'fim-enquanto': return 'Terminou o <code>enquanto</code>.';
+    case 'inicio-para': return 'Começou o <code>para</code> com ' + nome + '.';
+    case 'volta-para': return 'Volta ' + valor(evento.i) + ' do <code>para</code>, com ' + nome + ' valendo ' + valor(evento.d) + '.';
+    case 'fim-para': return 'Terminou o <code>para</code>.';
+    case 'chama-funcao': return 'Chamou ' + nome + '.';
+    case 'entra-funcao': return 'Entrou em ' + nome + ' — agora são ' + valor(evento.p) + ' chamada(s) empilhada(s).';
+    case 'retorna-funcao': return nome + ' devolveu ' + valor(evento.d) + '.';
+    case 'chama-nativa': return 'Chamou a função pronta ' + nome + '.';
+    case 'escreve': return 'Escreveu na saída.';
+    case 'cria-lista': return 'Criou uma lista.';
+    case 'le-indice': return 'Leu a posição ' + valor(evento.x) + ' e achou ' + valor(evento.d) + '.';
+    case 'escreve-indice': return 'Guardou ' + valor(evento.d) + ' na posição ' + valor(evento.x) + '.';
+    case 'adiciona-lista': return 'Acrescentou ' + valor(evento.d) + ' à lista.';
+    case 'remove-lista': return 'Tirou ' + valor(evento.a) + ' da lista.';
+    case 'importa-modulo': return 'Importou ' + nome + '.';
+    case 'modulo-carregado': return 'Carregou o módulo ' + nome + '.';
+    default: return evento.t;
+  }
+}
+
+const escaparHtml = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+function abrirDepurador(dados) {
+  fita = dados.eventos || [];
+  if (fita.length === 0) { elEstado.textContent = 'nada para percorrer'; return; }
+  elDepurador.hidden = false;
+  elTempo.max = String(fita.length - 1);
+  elTempo.value = '0';
+  if (dados.truncado) {
+    elEstado.textContent = 'gravados os primeiros ' + fita.length + ' passos de ' + dados.total;
+  } else {
+    elEstado.textContent = fita.length + ' passos gravados';
+  }
+  irPara(0);
+}
+
+function fecharDepurador() {
+  elDepurador.hidden = true;
+  elLinhaAtual.hidden = true;
+  fita = []; passo = 0;
+}
+
+function irPara(indice) {
+  if (fita.length === 0) return;
+  passo = Math.max(0, Math.min(indice, fita.length - 1));
+  elTempo.value = String(passo);
+  const evento = fita[passo];
+  elDescricao.innerHTML = '<span class="passo-n">' + (passo + 1) + '/' + fita.length + '</span> &nbsp; ' + descrever(evento);
+  destacarLinha(evento.l);
+  mostrarVariaveis(evento, passo > 0 ? fita[passo - 1] : null);
+  mostrarPilha(evento);
+}
+
+/* Posiciona a faixa pela altura de linha real, medida do elemento de numeros —
+   assim o destaque nao sai do lugar se a fonte ou o zoom mudarem. */
+function destacarLinha(linha) {
+  if (!linha || linha < 1) { elLinhaAtual.hidden = true; return; }
+  const total = elCodigo.value.split('\n').length;
+  if (linha > total) { elLinhaAtual.hidden = true; return; }
+  const estilo = getComputedStyle(elCodigo);
+  const alturaLinha = parseFloat(estilo.lineHeight);
+  const topoTexto = parseFloat(estilo.paddingTop);
+  elLinhaAtual.style.top = (topoTexto + (linha - 1) * alturaLinha - elCodigo.scrollTop) + 'px';
+  elLinhaAtual.style.height = alturaLinha + 'px';
+  elLinhaAtual.hidden = false;
+  /* Traz a linha para a area visivel se o programa for maior que o editor. */
+  const alvo = topoTexto + (linha - 1) * alturaLinha;
+  if (alvo < elCodigo.scrollTop || alvo > elCodigo.scrollTop + elCodigo.clientHeight - alturaLinha * 2) {
+    elCodigo.scrollTop = Math.max(0, alvo - elCodigo.clientHeight / 2);
+    sincronizarRolagem();
+    elLinhaAtual.style.top = (topoTexto + (linha - 1) * alturaLinha - elCodigo.scrollTop) + 'px';
+  }
+}
+
+function mostrarVariaveis(evento, anterior) {
+  const atuais = evento.v || [];
+  if (atuais.length === 0) { elVariaveis.innerHTML = '<span class="vazio">nenhuma variável ainda</span>'; return; }
+  const antes = new Map((anterior && anterior.v ? anterior.v : []).map((x) => [x.n, x.v]));
+  elVariaveis.innerHTML = atuais.map((x) => {
+    const mudou = antes.has(x.n) ? antes.get(x.n) !== x.v : anterior !== null;
+    return '<div class="par' + (mudou ? ' mudou' : '') + '">' +
+      '<span class="nome">' + escaparHtml(x.n) + '</span>' +
+      '<span class="valor">' + escaparHtml(x.v) + '</span></div>';
+  }).join('');
+}
+
+/* Reconstitui a pilha varrendo a fita para tras: cada 'entra-funcao' de
+   profundidade menor que a anterior e o chamador. */
+function mostrarPilha(evento) {
+  const quadros = [];
+  let esperada = evento.p;
+  for (let i = passo; i >= 0 && esperada > 0; i--) {
+    const e = fita[i];
+    if (e.t === 'entra-funcao' && e.p === esperada) { quadros.push(e.n); esperada--; }
+  }
+  quadros.push('principal');
+  elPilha.innerHTML = quadros.map((nome, i) =>
+    '<div class="quadro"><span class="prof">' + (quadros.length - 1 - i) + '</span> ' + escaparHtml(nome) + '</div>'
+  ).join('');
+}
+
+elTempo.addEventListener('input', () => irPara(Number(elTempo.value)));
+$('passo-anterior').addEventListener('click', () => irPara(passo - 1));
+$('passo-proximo').addEventListener('click', () => irPara(passo + 1));
+$('passo-inicio').addEventListener('click', () => irPara(0));
+$('passo-fim').addEventListener('click', () => irPara(fita.length - 1));
+$('fechar-passo').addEventListener('click', fecharDepurador);
+document.addEventListener('keydown', (evento) => {
+  if (elDepurador.hidden) return;
+  if (document.activeElement === elCodigo || document.activeElement === elEntrada) return;
+  if (evento.key === 'ArrowLeft') { evento.preventDefault(); irPara(passo - 1); }
+  if (evento.key === 'ArrowRight') { evento.preventDefault(); irPara(passo + 1); }
+});
 
 /* ---------- exemplos, rascunho e link ---------- */
 
@@ -229,17 +376,20 @@ function compartilhar() {
 /* ---------- ligacao ---------- */
 
 elCodigo.value = codigoInicial();
-elCodigo.addEventListener('input', redesenhar);
+elCodigo.addEventListener('input', () => { redesenhar(); if (!elDepurador.hidden) fecharDepurador(); });
 elCodigo.addEventListener('scroll', sincronizarRolagem);
 elCodigo.addEventListener('keydown', tratarTecla);
-btRodar.addEventListener('click', executar);
+btRodar.addEventListener('click', () => executar('normal'));
+btDepurar.addEventListener('click', () => executar('passo'));
 btParar.addEventListener('click', parar);
 $('limpar').addEventListener('click', limparSaida);
 $('compartilhar').addEventListener('click', compartilhar);
 
 /* Ctrl/Cmd+Enter executa de dentro do editor. */
 document.addEventListener('keydown', (evento) => {
-  if ((evento.ctrlKey || evento.metaKey) && evento.key === 'Enter') { evento.preventDefault(); executar(); }
+  if ((evento.ctrlKey || evento.metaKey) && evento.key === 'Enter') {
+    evento.preventDefault(); executar(evento.shiftKey ? 'passo' : 'normal');
+  }
 });
 
 montarExemplos();

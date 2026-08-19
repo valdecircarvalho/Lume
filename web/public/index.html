@@ -24,6 +24,7 @@
     <div class="editor" id="editor">
       <div class="numeros" id="numeros" aria-hidden="true"></div>
       <div class="area">
+        <div class="linha-atual" id="linha-atual" hidden></div>
         <pre class="realce" id="realce" aria-hidden="true"><code></code></pre>
         <textarea id="codigo" spellcheck="false" autocapitalize="off" autocomplete="off"
                   autocorrect="off" aria-label="Código Lume"></textarea>
@@ -31,9 +32,32 @@
     </div>
 
     <div class="rodape-editor">
-      <button id="rodar" type="button" class="primario" disabled>Carregando…</button>
+      <button id="rodar" type="button" class="primario" disabled>Executar</button>
+      <button id="depurar" type="button" class="secundario grande" disabled>Passo a passo</button>
       <button id="parar" type="button" class="perigo" hidden>Parar</button>
       <span id="estado" class="estado"></span>
+    </div>
+
+    <div class="depurador" id="depurador" hidden>
+      <div class="controles">
+        <button id="passo-inicio" class="secundario" type="button" title="Primeiro passo">&#124;&#9664;</button>
+        <button id="passo-anterior" class="secundario" type="button" title="Passo anterior">&#9664;</button>
+        <input type="range" id="linha-do-tempo" min="0" max="0" value="0" aria-label="Passo da execução">
+        <button id="passo-proximo" class="secundario" type="button" title="Próximo passo">&#9654;</button>
+        <button id="passo-fim" class="secundario" type="button" title="Último passo">&#9654;&#124;</button>
+        <button id="fechar-passo" class="secundario" type="button">Sair</button>
+      </div>
+      <p class="descricao" id="descricao-passo"></p>
+      <div class="inspetor">
+        <div>
+          <h3>Variáveis</h3>
+          <div id="variaveis" class="grade"></div>
+        </div>
+        <div>
+          <h3>Chamadas</h3>
+          <div id="pilha" class="grade"></div>
+        </div>
+      </div>
     </div>
   </section>
 

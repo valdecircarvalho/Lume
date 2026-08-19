@@ -17,7 +17,7 @@ createLume().then((M) => {
 });
 
 onmessage = (evento) => {
-  const { codigo, entrada } = evento.data;
+  const { codigo, entrada, modo } = evento.data;
   if (modulo === null) {
     postMessage({ tipo: 'resultado', saida: '', erro: 'O interpretador ainda esta carregando.' });
     return;
@@ -25,12 +25,20 @@ onmessage = (evento) => {
   const inicio = performance.now();
   let ponteiro = 0;
   try {
-    ponteiro = modulo.ccall('lume_web_eval', 'number', ['string', 'string'], [codigo, entrada]);
-    const saida = ponteiro ? modulo.UTF8ToString(ponteiro) : '';
+    const funcao = modo === 'passo' ? 'lume_web_trace' : 'lume_web_eval';
+    ponteiro = modulo.ccall(funcao, 'number', ['string', 'string'], [codigo, entrada]);
+    const bruto = ponteiro ? modulo.UTF8ToString(ponteiro) : '';
     /* A string ja foi copiada para JS aqui, entao liberar antes de responder e
        seguro — e garante que nada fica pendurado se o postMessage falhar. */
     if (ponteiro) { modulo.ccall('lume_web_free', null, ['number'], [ponteiro]); ponteiro = 0; }
-    postMessage({ tipo: 'resultado', saida: saida, ms: Math.round(performance.now() - inicio) });
+    const ms = Math.round(performance.now() - inicio);
+    if (modo === 'passo') {
+      const fita = JSON.parse(bruto);
+      postMessage({ tipo: 'resultado', modo: 'passo', saida: fita.saida, eventos: fita.eventos,
+                    total: fita.total, truncado: fita.truncado, ms: ms });
+    } else {
+      postMessage({ tipo: 'resultado', saida: bruto, ms: ms });
+    }
   } catch (erro) {
     /* Chegar aqui significa que o wasm abortou (estouro de pilha, por exemplo).
        O modulo nao e mais confiavel: nao se chama free sobre a heap dele, porque
