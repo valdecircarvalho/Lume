@@ -121,7 +121,7 @@ maior valor pedagógico por linha escrita.
 
 ## 3. Propostas, ordenadas por valor de ensino
 
-### P1 — Variáveis agrupadas por quadro da pilha ⭐
+### P1 — Variáveis agrupadas por quadro da pilha ⭐ — ✅ FEITO
 
 Descrito acima. Corrige exibição errada, não adiciona enfeite.
 
@@ -129,7 +129,7 @@ Junto vem uma consequência de layout: o painel de variáveis e o de pilha viram
 **um só**, porque a pilha passa a ser o eixo de organização das variáveis — que é
 como o Python Tutor faz. Sobra espaço em vez de faltar.
 
-### P2 — Erros marcados no editor, não só no painel de saída
+### P2 — Erros marcados no editor, não só no painel de saída — ✅ FEITO
 
 Hoje o diagnóstico aparece como texto na saída. O aluno lê `linha 2, coluna 9` e
 precisa contar linhas com o dedo.
@@ -145,7 +145,7 @@ diagnóstico completo — o sublinhado é adicional, não substituto.
 Nenhum dos três sistemas que olhei faz isso bem em português. É a maior lacuna
 de experiência para iniciantes e a mais barata de fechar com o que já existe.
 
-### P3 — Primeira visita não pode ser uma caixa de código
+### P3 — Primeira visita não pode ser uma caixa de código — ✅ FEITO
 
 Hoje quem chega vê um editor com um "Olá, mundo" e dois botões. Não há nada
 dizendo o que é a Lume, o que dá para fazer, nem que existe um modo passo a passo
@@ -216,9 +216,23 @@ link que um colega mandou — e parar por aí.
 
 ---
 
-## 4. Fatia recomendada
+## 4. Fatia recomendada — ✅ ENTREGUE
 
-Se fosse escolher, faria **P1 + P2 + P3**, nessa ordem:
+**P1 + P2 + P3 foram implementados nessa ordem**, cada um validado antes de o
+seguinte começar: `make` sem warnings, `make test` 15/15, `make sanitize` 15/15
+limpo, o wrapper sob ASan/UBSan, e verificação no navegador.
+
+Dois aprendizados do caminho valem registro:
+
+- **O primeiro teste do P1 não pegava o bug.** Ele procurava os quatro valores
+  de `n` na fita inteira, e eles apareciam mesmo com o defeito — em eventos
+  diferentes. Só depois de recortar **um evento** e exigir quatro quadros dentro
+  dele o teste ficou vermelho sem a correção. Um teste que não falha com o bug
+  presente não vale nada.
+- **P2 não precisou de dado novo.** O `span` já estava em todo `LumeError`, para
+  o caret do terminal. Era ligar o que estava desligado.
+
+O raciocínio original da escolha:
 
 1. **P1** porque corrige algo errado, não porque enfeita. Enquanto não for feito,
    o passo a passo mente em recursão.
