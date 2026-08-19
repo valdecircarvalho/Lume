@@ -65,8 +65,14 @@
       </div>
       <p class="descricao" id="descricao-passo"></p>
       <div class="inspetor">
-        <h3>Estado da execução <span class="dica-inspetor">cada bloco é uma chamada em andamento</span></h3>
-        <div id="quadros" class="grade"></div>
+        <div>
+          <h3>Estado da execução <span class="dica-inspetor">cada bloco é uma chamada em andamento</span></h3>
+          <div id="quadros" class="grade"></div>
+        </div>
+        <div>
+          <h3>Saída até aqui</h3>
+          <pre id="saida-parcial" class="grade saida-parcial"></pre>
+        </div>
       </div>
     </div>
   </section>
@@ -80,7 +86,7 @@
               placeholder="Deixe vazio se o programa não usa leia()"></textarea>
 
     <div class="cabecalho">
-      <h2>Saída</h2>
+      <h2 id="titulo-saida">Saída</h2>
       <button id="limpar" class="secundario" type="button">Limpar</button>
     </div>
     <pre id="saida" class="saida" aria-live="polite"></pre>

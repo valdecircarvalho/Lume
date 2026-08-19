@@ -37,6 +37,7 @@ const elNumeros = $('numeros'), elEntrada = $('entrada'), elSaida = $('saida');
 const btRodar = $('rodar'), btParar = $('parar'), elEstado = $('estado');
 const btDepurar = $('depurar'), elDepurador = $('depurador'), elTempo = $('linha-do-tempo');
 const elDescricao = $('descricao-passo'), elQuadros = $('quadros');
+const elSaidaParcial = $('saida-parcial'), elEditor = $('editor'), elTituloSaida = $('titulo-saida');
 const elLinhaAtual = $('linha-atual'), elMarcaErro = $('marca-erro'), elBalaoErro = $('balao-erro');
 
 /* ---------- realce de sintaxe ---------- */
@@ -83,6 +84,7 @@ function sincronizarRolagem() {
 /* Tab indenta em vez de sair do campo — sair do campo com Tab surpreende
    quem esta escrevendo codigo. Shift+Tab desindenta. */
 function tratarTecla(evento) {
+  if (elCodigo.readOnly) return;
   if (evento.key !== 'Tab') return;
   evento.preventDefault();
   const ini = elCodigo.selectionStart, fim = elCodigo.selectionEnd, v = elCodigo.value;
@@ -315,6 +317,11 @@ function abrirDepurador(dados) {
   fita = dados.eventos || [];
   if (fita.length === 0) { elEstado.textContent = 'nada para percorrer'; return; }
   elDepurador.hidden = false;
+  /* A fita ja foi gravada: editar por baixo dela deixaria a linha destacada
+     apontando para um codigo que nao existe mais. */
+  elCodigo.readOnly = true;
+  elEditor.classList.add('congelado');
+  elTituloSaida.textContent = 'Saída completa';
   elTempo.max = String(fita.length - 1);
   elTempo.value = '0';
   if (dados.truncado) {
@@ -328,6 +335,10 @@ function abrirDepurador(dados) {
 function fecharDepurador() {
   elDepurador.hidden = true;
   elLinhaAtual.hidden = true;
+  elCodigo.readOnly = false;
+  elEditor.classList.remove('congelado');
+  elTituloSaida.textContent = 'Saída';
+  elSaidaParcial.textContent = '';
   fita = []; passo = 0;
 }
 
@@ -339,6 +350,29 @@ function irPara(indice) {
   elDescricao.innerHTML = '<span class="passo-n">' + (passo + 1) + '/' + fita.length + '</span> &nbsp; ' + descrever(evento);
   destacarLinha(evento.l);
   mostrarQuadros(evento, passo > 0 ? fita[passo - 1] : null);
+  mostrarSaidaParcial();
+}
+
+/* Reconstroi o que o programa ja tinha escrito ate o passo atual. O evento de
+   escrita carrega o valor impresso em `d` (o interpretador o coloca em
+   TraceEvent.after), entao basta juntar os anteriores — o aluno ve o texto
+   surgindo conforme avanca, em vez de a saida inteira aparecer de uma vez. */
+function mostrarSaidaParcial() {
+  const partes = [];
+  let ultimaEhAgora = false;
+  for (let i = 0; i <= passo; i++) {
+    if (fita[i].t === 'escreve') {
+      partes.push(fita[i].d === undefined ? '' : fita[i].d);
+      ultimaEhAgora = (i === passo);
+    }
+  }
+  if (partes.length === 0) { elSaidaParcial.textContent = ''; return; }
+  const anteriores = partes.slice(0, partes.length - 1).map((t) => escaparHtml(t) + '\n').join('');
+  const ultima = escaparHtml(partes[partes.length - 1]) + '\n';
+  /* Destaca a linha recem-escrita quando foi este passo que a escreveu. */
+  elSaidaParcial.innerHTML = anteriores +
+    (ultimaEhAgora ? '<span class="agora">' + ultima + '</span>' : ultima);
+  elSaidaParcial.scrollTop = elSaidaParcial.scrollHeight;
 }
 
 /* Posiciona a faixa pela altura de linha real, medida do elemento de numeros —
